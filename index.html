@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Converter - Convert Your Files</title>
+    <link rel="icon" type="image/svg+xml" href="https://graphics.goodhearttech.org/GHT/favicons/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/util.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #7189ff;
+            --dark-blue: #394053;
+            --gray: #808080;
+            --light-blue: #a0ddff;
+            --rich-black: #091D20;
+            --white: #FFFFFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans', sans-serif;
+        }
+
+        body {
+            background-color: var(--rich-black);
+            color: var(--white);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            color: var(--light-blue);
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            color: var(--light-blue);
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-box {
+            background-color: var(--dark-blue);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .info-box a {
+            color: var(--light-blue);
+            text-decoration: underline;
+            font-weight: 500;
+        }
+
+        .info-box a:hover {
+            text-decoration: underline;
+        }
+
+        .upload-section {
+            background-color: var(--dark-blue);
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            padding: 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            background-color: rgba(113, 137, 255, 0.1);
+        }
+
+        .upload-area i {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .supported-formats {
+            margin-top: 2rem;
+            text-align: left;
+        }
+
+        .format-category {
+            margin-bottom: 2rem;
+        }
+
+        .format-category h3 {
+            color: var(--light-blue);
+            margin-bottom: 1rem;
+        }
+
+        .format-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .format-item {
+            background-color: var(--gray);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .conversion-options {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .conversion-options.active {
+            display: block;
+        }
+
+        .conversion-button {
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .conversion-button:hover {
+            background-color: #5a6fd1;
+        }
+
+        .conversion-button:disabled {
+            background-color: var(--gray);
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: var(--gray);
+            border-radius: 2px;
+            margin: 0.5rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .quality-settings {
+            display: none;
+        }
+
+        .quality-settings.active {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: rgba(113, 137, 255, 0.1);
+            border-radius: 4px;
+            display: none;
+        }
+
+        .file-info.active {
+            display: block;
+        }
+
+        .file-info p {
+            margin: 0.5rem 0;
+        }
+
+        .preview-container {
+            margin-top: 1rem;
+            text-align: center;
+            display: none;
+        }
+
+        .preview-container.active {
+            display: block;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .spreadsheet-preview {
+            margin-top: 1rem;
+            overflow-x: auto;
+            background-color: var(--dark-blue);
+            border-radius: 4px;
+            padding: 1rem;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .preview-table td {
+            padding: 0.5rem;
+            border: 1px solid var(--gray);
+            min-width: 100px;
+        }
+
+        .preview-table tr:first-child td {
+            background-color: var(--primary-color);
+            color: var(--white);
+            font-weight: 500;
+        }
+
+        .preview-loading {
+            text-align: center;
+            color: var(--gray);
+            padding: 1rem;
+        }
+
+        .warning-message {
+            color: #ff6b6b;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .warning-message i {
+            color: #ff6b6b;
+        }
+
+        .warning-message a {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        footer {
+            background-color: var(--dark-blue);
+            padding: 2rem;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-logo {
+            height: 40px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .footer-links a {
+            color: var(--white);
+            text-decoration: underline;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--light-blue);
+        }
+
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Media Converter</h1>
+            <p class="subtitle">Convert your files between various formats with ease</p>
+        </header>
+
+        <div class="info-box">
+            <p><i class="fas fa-file-pdf"></i> Looking to manage PDF files or convert to PDF? We recommend this powerful, web-based <a href="http://pdf.nonprofittools.org/" target="_blank">free suite of PDF tools</a>.</p>   
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="dropZone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h2>Drag & Drop your file here</h2>
+                <p>or</p>
+                <button class="conversion-button" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+                <input type="file" id="fileInput" accept="*/*">
+            </div>
+
+            <div class="conversion-options" id="conversionOptions">
+                <!-- Conversion buttons will be dynamically added here -->
+            </div>
+        </div>
+
+        <div class="supported-formats">
+            <h2>Supported Formats</h2>
+            
+            <div class="format-category">
+                <h3>Images</h3>
+                <div class="format-list">
+                    <span class="format-item">JPG/JPEG</span>
+                    <span class="format-item">PNG</span>
+                    <span class="format-item">SVG</span>
+                    <span class="format-item">GIF</span>
+                    <span class="format-item">BMP</span>
+                    <span class="format-item">TIFF/TIF</span>
+                    <span class="format-item">WEBP</span>
+                </div>
+            </div>
+
+            <div class="format-category">
+                <h3>Documents</h3>
+                <div class="format-list">
+                    <span class="format-item">DOCX</span>
+                    <span class="format-item">ODT</span>
+                    <span class="format-item">TXT</span>
+                    <span class="format-item">RTF</span>
+                    <span class="format-item">MD</span>
+                </div>
+            </div>
+
+            <div class="format-category">
+                <h3>Spreadsheets</h3>
+                <div class="format-list">
+                    <span class="format-item">XLSX</span>
+                    <span class="format-item">ODS</span>
+                    <span class="format-item">CSV</span>
+                    <span class="format-item">TSV</span>
+                </div>
+            </div>
+
+            <div class="format-category">
+                <h3>Presentations</h3>
+                <div class="format-list">
+                    <span class="format-item">PPTX</span>
+                    <span class="format-item">ODP</span>
+                </div>
+            </div>
+
+            <div class="format-category">
+                <h3>Audio</h3>
+                <div class="format-list">
+                    <span class="format-item">MP3</span>
+                    <span class="format-item">WAV</span>
+                    <span class="format-item">FLAC</span>
+                    <span class="format-item">AAC</span>
+                    <span class="format-item">OGG</span>
+                </div>
+            </div>
+
+            <div class="format-category">
+                <h3>Video</h3>
+                <div class="format-list">
+                    <span class="format-item">MP4</span>
+                    <span class="format-item">MOV</span>
+                    <span class="format-item">AVI</span>
+                    <span class="format-item">WMV</span>
+                    <span class="format-item">MKV</span>
+                </div>
+            </div>
+
+            <div class="format-category">
+                <h3>Archives</h3>
+                <div class="format-list">
+                    <span class="format-item">ZIP</span>
+                    <span class="format-item">RAR</span>
+                    <span class="format-item">7Z</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <a href="https://goodhearttech.org/" target="_blank">
+                <img src="https://graphics.goodhearttech.org/GHT-AllWhiteLogo-phishsite.png" alt="Good Heart Tech Logo" class="footer-logo">
+            </a>
+            <div class="footer-links">
+                <a href="https://goodhearttech.org/donate/" target="_blank">
+                    <i class="fas fa-heart"></i> Donate
+                </a>
+                <a href="https://github.com/Good-Heart-Technology/Wallpaper-Generator" target="_blank">
+                    <i class="fab fa-github"></i> GitHub
+                </a>
+            </div>
+            <p>&copy; <span id="currentYear"></span> Good Heart Technology. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Set current year in footer
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        // File handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const conversionOptions = document.getElementById('conversionOptions');
+        let currentFile = null;
+
+        // File type validation
+        const SUPPORTED_MIME_TYPES = {
+            'image': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml'],
+            'audio': ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
+            'video': ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/x-matroska'],
+            'document': ['text/plain', 'text/rtf', 'text/markdown'],
+            'spreadsheet': [
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.oasis.opendocument.spreadsheet',
+                'text/csv',
+                'text/tab-separated-values'
+            ],
+            'presentation': [
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'application/vnd.oasis.opendocument.presentation'
+            ],
+            'archive': [
+                'application/zip',
+                'application/x-rar-compressed',
+                'application/x-7z-compressed'
+            ]
+        };
+
+        // File size limits (in bytes)
+        const FILE_SIZE_LIMITS = {
+            'image': 10 * 1024 * 1024,    // 10MB
+            'audio': 50 * 1024 * 1024,    // 50MB
+            'video': 100 * 1024 * 1024,   // 100MB
+            'document': 20 * 1024 * 1024, // 20MB
+            'spreadsheet': 20 * 1024 * 1024, // 20MB
+            'presentation': 20 * 1024 * 1024, // 20MB
+            'archive': 50 * 1024 * 1024,  // 50MB
+            'default': 10 * 1024 * 1024   // 10MB default
+        };
+
+        // Document conversion options
+        const DOCUMENT_CONVERSION_OPTIONS = {
+            'txt': {
+                name: 'Plain Text',
+                mimeType: 'text/plain',
+                convert: async (file) => {
+                    const text = await file.text();
+                    return new Blob([text], { type: 'text/plain' });
+                }
+            },
+            'rtf': {
+                name: 'Rich Text Format',
+                mimeType: 'text/rtf',
+                convert: async (file) => {
+                    const text = await file.text();
+                    const rtfHeader = '{\\rtf1\\ansi\\deff0\n';
+                    const rtfFooter = '}';
+                    return new Blob([rtfHeader + text + rtfFooter], { type: 'text/rtf' });
+                }
+            },
+            'md': {
+                name: 'Markdown',
+                mimeType: 'text/markdown',
+                convert: async (file) => {
+                    const text = await file.text();
+                    return new Blob([text], { type: 'text/markdown' });
+                }
+            }
+        };
+
+        // Spreadsheet conversion options
+        const SPREADSHEET_CONVERSION_OPTIONS = {
+            'csv': {
+                name: 'Comma-Separated Values',
+                mimeType: 'text/csv',
+                convert: async (file) => {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const csvContent = XLSX.utils.sheet_to_csv(firstSheet);
+                    return new Blob([csvContent], { type: 'text/csv' });
+                }
+            },
+            'tsv': {
+                name: 'Tab-Separated Values',
+                mimeType: 'text/tab-separated-values',
+                convert: async (file) => {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const tsvContent = XLSX.utils.sheet_to_csv(firstSheet, { FS: '\t' });
+                    return new Blob([tsvContent], { type: 'text/tab-separated-values' });
+                }
+            },
+            'xlsx': {
+                name: 'Excel Spreadsheet',
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                convert: async (file) => {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const xlsxData = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                    return new Blob([xlsxData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                }
+            },
+            'ods': {
+                name: 'OpenDocument Spreadsheet',
+                mimeType: 'application/vnd.oasis.opendocument.spreadsheet',
+                convert: async (file) => {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const odsData = XLSX.write(workbook, { bookType: 'ods', type: 'array' });
+                    return new Blob([odsData], { type: 'application/vnd.oasis.opendocument.spreadsheet' });
+                }
+            }
+        };
+
+        // Helper function to extract text from DOCX
+        async function extractTextFromDocx(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                // Check if it's a ZIP file (DOCX is a ZIP archive)
+                if (uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B || uint8Array[2] !== 0x03 || uint8Array[3] !== 0x04) {
+                    throw new Error('Invalid DOCX file format');
+                }
+
+                // Find the document.xml file in the ZIP structure
+                let docxContent = '';
+                let pos = 0;
+                
+                // Search for document.xml in the ZIP structure
+                while (pos < uint8Array.length - 4) {
+                    if (uint8Array[pos] === 0x50 && uint8Array[pos + 1] === 0x4B && uint8Array[pos + 2] === 0x03 && uint8Array[pos + 3] === 0x04) {
+                        // Found a ZIP file header
+                        const filenameLength = uint8Array[pos + 26] | (uint8Array[pos + 27] << 8);
+                        const extraLength = uint8Array[pos + 28] | (uint8Array[pos + 29] << 8);
+                        
+                        // Extract filename
+                        let filename = '';
+                        for (let i = 0; i < filenameLength; i++) {
+                            filename += String.fromCharCode(uint8Array[pos + 30 + i]);
+                        }
+                        
+                        if (filename === 'word/document.xml') {
+                            // Found document.xml, extract its content
+                            const contentStart = pos + 30 + filenameLength + extraLength;
+                            const contentLength = uint8Array[contentStart - 4] | (uint8Array[contentStart - 3] << 8) | (uint8Array[contentStart - 2] << 16) | (uint8Array[contentStart - 1] << 24);
+                            
+                            // Extract the XML content
+                            docxContent = new TextDecoder().decode(uint8Array.slice(contentStart, contentStart + contentLength));
+                            break;
+                        }
+                        
+                        pos += 30 + filenameLength + extraLength;
+                    } else {
+                        pos++;
+                    }
+                }
+
+                if (!docxContent) {
+                    throw new Error('Could not find document.xml in the DOCX file');
+                }
+
+                // Extract text content from the XML
+                const textContent = docxContent
+                    .replace(/<w:t[^>]*>([^<]+)<\/w:t>/g, '$1') // Extract text between w:t tags
+                    .replace(/<w:br\/>/g, '\n') // Convert line breaks
+                    .replace(/<w:p[^>]*>/g, '\n') // Convert paragraphs to newlines
+                    .replace(/<\/w:p>/g, '') // Remove paragraph end tags
+                    .replace(/<[^>]+>/g, '') // Remove remaining XML tags
+                    .replace(/&[^;]+;/g, '') // Remove XML entities
+                    .replace(/\n\s*\n/g, '\n\n') // Normalize multiple newlines
+                    .replace(/\s+/g, ' ') // Normalize spaces
+                    .trim();
+
+                if (!textContent) {
+                    throw new Error('No text content found in the DOCX file');
+                }
+
+                return textContent;
+            } catch (error) {
+                console.error('Error extracting text from DOCX:', error);
+                throw new Error('Failed to extract text from DOCX file');
+            }
+        }
+
+        // Helper function to extract text from various file types
+        async function extractTextFromFile(file) {
+            try {
+                if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                    return await extractTextFromDocx(file);
+                } else if (file.type === 'text/plain') {
+                    return await file.text();
+                } else if (file.type === 'text/rtf') {
+                    const text = await file.text();
+                    // Remove RTF formatting
+                    return text.replace(/\\[a-z]{1,32}(-?\d{1,10})?[ ]?/g, '')
+                              .replace(/\\'[0-9a-f]{2}/g, '')
+                              .replace(/\\[{}]/g, '')
+                              .replace(/\\par/g, '\n')
+                              .replace(/\\line/g, '\n')
+                              .replace(/\\tab/g, '\t')
+                              .replace(/\n{3,}/g, '\n\n')
+                              .trim();
+                } else {
+                    return await file.text();
+                }
+            } catch (error) {
+                console.error('Error extracting text:', error);
+                throw new Error('Failed to extract text from file');
+            }
+        }
+
+        // Event Listeners
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults);
+            document.body.addEventListener(eventName, preventDefaults);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight);
+        });
+
+        // Basic UI Functions
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('highlight');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('highlight');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function updateProgress(percent) {
+            const progressFill = document.querySelector('.progress-fill');
+            const progressText = document.querySelector('.progress-text');
+            if (progressFill && progressText) {
+                progressFill.style.width = `${percent}%`;
+                progressText.textContent = `Converting... ${percent}%`;
+            }
+        }
+
+        // File Handling Functions
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            const file = files[0];
+            const validation = validateFileType(file);
+            
+            if (!validation.valid) {
+                alert(`Unsupported file type: ${file.name}\nPlease check the supported formats list below.`);
+                return;
+            }
+
+            const sizeLimit = getFileSizeLimit(file.type);
+            if (file.size > sizeLimit) {
+                alert(`File size exceeds the limit of ${formatFileSize(sizeLimit)}. Please choose a smaller file.`);
+                return;
+            }
+
+            currentFile = file;
+            showConversionOptions(file.type, validation.extension);
+        }
+
+        function validateFileType(file) {
+            const fileType = file.type;
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+
+            // Check MIME types first
+            for (const category in SUPPORTED_MIME_TYPES) {
+                if (SUPPORTED_MIME_TYPES[category].includes(fileType)) {
+                    return { valid: true, category, extension: fileExtension };
+                }
+            }
+
+            // If MIME type is not recognized, check file extension
+            const extensionMap = {
+                'image': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'svg'],
+                'audio': ['mp3', 'wav', 'ogg', 'flac', 'aac'],
+                'video': ['mp4', 'mov', 'avi', 'wmv', 'mkv'],
+                'document': ['txt', 'rtf', 'md'],
+                'spreadsheet': ['xlsx', 'ods', 'csv', 'tsv'],
+                'presentation': ['pptx', 'odp'],
+                'archive': ['zip', 'rar', '7z']
+            };
+
+            for (const category in extensionMap) {
+                if (extensionMap[category].includes(fileExtension)) {
+                    return { valid: true, category, extension: fileExtension };
+                }
+            }
+
+            return { valid: false, category: null, extension: fileExtension };
+        }
+
+        function getFileSizeLimit(fileType) {
+            if (fileType.startsWith('image/')) return FILE_SIZE_LIMITS.image;
+            if (fileType.startsWith('audio/')) return FILE_SIZE_LIMITS.audio;
+            if (fileType.startsWith('video/')) return FILE_SIZE_LIMITS.video;
+            if (fileType.includes('document')) return FILE_SIZE_LIMITS.document;
+            if (fileType.includes('spreadsheet')) return FILE_SIZE_LIMITS.spreadsheet;
+            if (fileType.includes('presentation')) return FILE_SIZE_LIMITS.presentation;
+            if (fileType.includes('archive')) return FILE_SIZE_LIMITS.archive;
+            return FILE_SIZE_LIMITS.default;
+        }
+
+        function getSupportedFormats(fileType, fileExtension) {
+            const formats = {
+                'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
+                'audio': ['MP3', 'WAV', 'OGG'],
+                'video': ['MP4', 'WEBM'],
+                'document': ['TXT', 'RTF', 'MD'],
+                'spreadsheet': ['CSV', 'TSV', 'XLSX', 'ODS'],
+                'presentation': ['PPTX', 'ODP'],
+                'archive': ['ZIP', 'RAR', '7Z']
+            };
+
+            // Special handling for CSV files
+            if (fileExtension === 'csv' || fileType === 'text/csv') {
+                return formats.spreadsheet.filter(f => f.toLowerCase() !== 'csv');
+            }
+
+            if (fileType.startsWith('image/')) return formats.image.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.startsWith('audio/')) return formats.audio.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.startsWith('video/')) return formats.video.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.startsWith('text/') || fileType.includes('document')) return formats.document.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.includes('spreadsheet')) return formats.spreadsheet.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.includes('presentation')) return formats.presentation.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.includes('archive')) return formats.archive.filter(f => f.toLowerCase() !== fileExtension);
+            return formats.application.filter(f => f.toLowerCase() !== fileExtension);
+        }
+
+        function showConversionOptions(fileType, fileExtension) {
+            conversionOptions.innerHTML = '';
+            conversionOptions.classList.add('active');
+
+            // File Info
+            const fileInfo = document.createElement('div');
+            fileInfo.className = 'file-info';
+            fileInfo.innerHTML = `
+                <p><strong>File Name:</strong> ${currentFile.name}</p>
+                <p><strong>File Size:</strong> ${formatFileSize(currentFile.size)}</p>
+                <p><strong>File Type:</strong> ${fileType}</p>
+            `;
+            fileInfo.classList.add('active');
+            conversionOptions.appendChild(fileInfo);
+
+            // Image Preview
+            if (fileType.startsWith('image/')) {
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'preview-container';
+                previewContainer.innerHTML = `
+                    <p><strong>Preview:</strong></p>
+                    <img class="preview-image" src="${URL.createObjectURL(currentFile)}" alt="Preview">
+                `;
+                previewContainer.classList.add('active');
+                conversionOptions.appendChild(previewContainer);
+            }
+
+            // PDF warning message
+            if (fileType === 'application/pdf') {
+                const warningMessage = document.createElement('div');
+                warningMessage.className = 'warning-message';
+                warningMessage.innerHTML = `
+                    <i class="fas fa-info-circle"></i>
+                    For PDF files, we recommend using our partner tool:
+                    <a href="http://pdf.nonprofittools.org/" target="_blank" style="color: inherit; text-decoration: underline;">PDF Tools</a>
+                `;
+                conversionOptions.appendChild(warningMessage);
+            }
+
+            // Spreadsheet Preview
+            if (fileType.includes('spreadsheet')) {
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'preview-container';
+                previewContainer.innerHTML = `
+                    <p><strong>Preview:</strong></p>
+                    <div class="spreadsheet-preview">
+                        <table class="preview-table">
+                            <tbody>
+                                <tr>
+                                    <td colspan="3" class="preview-loading">Loading preview...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                previewContainer.classList.add('active');
+                conversionOptions.appendChild(previewContainer);
+
+                // Load spreadsheet preview
+                loadSpreadsheetPreview(currentFile);
+            }
+
+            // Spreadsheet warning message
+            if (fileType.includes('spreadsheet')) {
+                const warningMessage = document.createElement('div');
+                warningMessage.className = 'warning-message';
+                warningMessage.innerHTML = `
+                    <i class="fas fa-info-circle"></i>
+                    Note: Complex spreadsheet features (formulas, formatting, etc.) may not be preserved in the conversion.
+                `;
+                conversionOptions.appendChild(warningMessage);
+            }
+
+            // Conversion Buttons
+            const supportedFormats = getSupportedFormats(fileType, fileExtension);
+            supportedFormats.forEach(format => {
+                const button = document.createElement('button');
+                button.className = 'conversion-button';
+                button.innerHTML = `<i class="fas fa-download"></i> Convert to ${format}`;
+                button.addEventListener('click', () => {
+                    console.log('Converting to:', format); // Debug log
+                    convertFile(format);
+                });
+                conversionOptions.appendChild(button);
+            });
+
+            // Progress Container
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'progress-container';
+            progressContainer.innerHTML = `
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <p class="progress-text">Converting...</p>
+            `;
+            conversionOptions.appendChild(progressContainer);
+        }
+
+        // Conversion Functions
+        async function convertFile(targetFormat) {
+            if (!currentFile) {
+                alert('Please select a file first.');
+                return;
+            }
+
+            const progressContainer = document.querySelector('.progress-container');
+            progressContainer.classList.add('active');
+
+            try {
+                const fileType = currentFile.type;
+                let result;
+
+                if (fileType.startsWith('image/')) {
+                    result = await convertImage(targetFormat);
+                } else if (fileType.startsWith('audio/')) {
+                    result = await convertAudio(targetFormat);
+                } else if (fileType.startsWith('video/')) {
+                    result = await convertVideo(targetFormat);
+                } else if (fileType.startsWith('text/') || fileType.includes('document')) {
+                    result = await convertDocument(targetFormat);
+                } else if (fileType.includes('spreadsheet')) {
+                    result = await convertSpreadsheet(targetFormat);
+                } else {
+                    throw new Error('Unsupported file type for conversion.');
+                }
+
+                // Create download link with modified filename
+                const url = URL.createObjectURL(result);
+                const a = document.createElement('a');
+                a.href = url;
+                const originalName = currentFile.name;
+                const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.'));
+                a.download = `${nameWithoutExt}-Converted.${targetFormat.toLowerCase()}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                updateProgress(100);
+            } catch (error) {
+                console.error('Conversion error:', error);
+                alert('An error occurred during conversion. Please try again.');
+            } finally {
+                setTimeout(() => {
+                    progressContainer.classList.remove('active');
+                }, 1000);
+            }
+        }
+
+        async function convertImage(targetFormat) {
+            // Create an image element
+            const img = new Image();
+            img.src = URL.createObjectURL(currentFile);
+
+            // Wait for the image to load
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            });
+
+            // Create a canvas element
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            // Draw the image on the canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            // Convert to the target format
+            let mimeType;
+            switch (targetFormat.toLowerCase()) {
+                case 'png':
+                    mimeType = 'image/png';
+                    break;
+                case 'jpg':
+                case 'jpeg':
+                    mimeType = 'image/jpeg';
+                    break;
+                case 'webp':
+                    mimeType = 'image/webp';
+                    break;
+                case 'gif':
+                    mimeType = 'image/gif';
+                    break;
+                case 'svg':
+                    // Convert canvas to base64 data URL
+                    const dataUrl = canvas.toDataURL('image/png');
+                    // Create SVG with embedded image data
+                    const svgString = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" 
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="${img.width}" 
+     height="${img.height}" 
+     viewBox="0 0 ${img.width} ${img.height}">
+    <image width="${img.width}" 
+           height="${img.height}" 
+           xlink:href="${dataUrl}"
+           preserveAspectRatio="xMidYMid meet"/>
+</svg>`;
+                    return new Blob([svgString], { type: 'image/svg+xml' });
+                default:
+                    throw new Error('Unsupported format');
+            }
+
+            // Convert the canvas to a blob with maximum quality
+            return new Promise(resolve => {
+                canvas.toBlob(resolve, mimeType, 1.0);
+            });
+        }
+
+        async function convertAudio(targetFormat) {
+            // Create audio context
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Read the audio file
+            const arrayBuffer = await currentFile.arrayBuffer();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Create offline context for processing
+            const offlineContext = new OfflineAudioContext(
+                audioBuffer.numberOfChannels,
+                audioBuffer.length,
+                audioBuffer.sampleRate
+            );
+
+            // Create source and connect to destination
+            const source = offlineContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(offlineContext.destination);
+            source.start();
+
+            // Process the audio
+            const renderedBuffer = await offlineContext.startRendering();
+            
+            // Convert to WAV format
+            const wavData = audioBufferToWav(renderedBuffer);
+            return new Blob([wavData], { type: 'audio/wav' });
+        }
+
+        function audioBufferToWav(buffer) {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+
+            const wav = new ArrayBuffer(44 + buffer.length * blockAlign);
+            const view = new DataView(wav);
+
+            // Write WAV header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + buffer.length * blockAlign, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, buffer.length * blockAlign, true);
+
+            // Write audio data
+            const data = new Float32Array(buffer.length);
+            const channelData = buffer.getChannelData(0);
+            for (let i = 0; i < buffer.length; i++) {
+                data[i] = channelData[i];
+            }
+
+            let offset = 44;
+            for (let i = 0; i < data.length; i++) {
+                const sample = Math.max(-1, Math.min(1, data[i]));
+                view.setInt16(offset, sample * 0x7FFF, true);
+                offset += 2;
+            }
+
+            return wav;
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        async function convertDocument(targetFormat) {
+            const format = targetFormat.toLowerCase();
+            if (!DOCUMENT_CONVERSION_OPTIONS[format]) {
+                throw new Error('Unsupported document format');
+            }
+
+            updateProgress(25);
+            try {
+                const blob = await DOCUMENT_CONVERSION_OPTIONS[format].convert(currentFile);
+                updateProgress(100);
+                return blob;
+            } catch (error) {
+                console.error('Document conversion error:', error);
+                throw new Error('Failed to convert document. Please try a different format.');
+            }
+        }
+
+        async function convertSpreadsheet(targetFormat) {
+            const format = targetFormat.toLowerCase();
+            if (!SPREADSHEET_CONVERSION_OPTIONS[format]) {
+                throw new Error('Unsupported spreadsheet format');
+            }
+
+            updateProgress(25);
+            try {
+                const blob = await SPREADSHEET_CONVERSION_OPTIONS[format].convert(currentFile);
+                updateProgress(100);
+                return blob;
+            } catch (error) {
+                console.error('Spreadsheet conversion error:', error);
+                throw new Error('Failed to convert spreadsheet. Please try a different format.');
+            }
+        }
+
+        async function convertVideo(targetFormat) {
+            // Show warning about video conversion limitations
+            const warningMessage = document.createElement('div');
+            warningMessage.className = 'warning-message';
+            warningMessage.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                Video conversion may take some time and requires significant browser resources.
+                Please be patient during the conversion process.
+            `;
+            document.querySelector('.progress-container').appendChild(warningMessage);
+
+            // Check if FFmpeg is loaded
+            if (typeof FFmpeg === 'undefined') {
+                throw new Error('FFmpeg is not loaded. Please refresh the page and try again.');
+            }
+
+            // Initialize FFmpeg
+            const ffmpeg = new FFmpeg();
+            await ffmpeg.load();
+
+            // Write the input file to FFmpeg's virtual filesystem
+            const inputData = await currentFile.arrayBuffer();
+            await ffmpeg.writeFile('input' + getFileExtension(currentFile.name), new Uint8Array(inputData));
+
+            // Set up FFmpeg command based on target format
+            let command = [];
+            switch (targetFormat.toLowerCase()) {
+                case 'mp4':
+                    command = ['-i', 'input' + getFileExtension(currentFile.name), '-c:v', 'libx264', '-c:a', 'aac', 'output.mp4'];
+                    break;
+                case 'webm':
+                    command = ['-i', 'input' + getFileExtension(currentFile.name), '-c:v', 'libvpx-vp9', '-c:a', 'libvorbis', 'output.webm'];
+                    break;
+                default:
+                    throw new Error('Unsupported video format');
+            }
+
+            // Set up progress handling
+            ffmpeg.on('progress', ({ progress }) => {
+                updateProgress(Math.round(progress * 100));
+            });
+
+            // Run FFmpeg command
+            await ffmpeg.exec(command);
+
+            // Read the output file
+            const data = await ffmpeg.readFile('output.' + targetFormat.toLowerCase());
+            return new Blob([data], { type: `video/${targetFormat.toLowerCase()}` });
+        }
+
+        function getFileExtension(filename) {
+            return '.' + filename.split('.').pop().toLowerCase();
+        }
+
+        // Add function to load spreadsheet preview
+        async function loadSpreadsheetPreview(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                // Get the preview table
+                const previewTable = document.querySelector('.preview-table tbody');
+                previewTable.innerHTML = '';
+
+                // Show first 5 rows
+                for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+                    const row = document.createElement('tr');
+                    for (let j = 0; j < Math.min(5, jsonData[i].length); j++) {
+                        const cell = document.createElement('td');
+                        cell.textContent = jsonData[i][j] || '';
+                        row.appendChild(cell);
+                    }
+                    previewTable.appendChild(row);
+                }
+            } catch (error) {
+                console.error('Error loading spreadsheet preview:', error);
+                const previewTable = document.querySelector('.preview-table tbody');
+                previewTable.innerHTML = '<tr><td colspan="3">Unable to load preview</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>
