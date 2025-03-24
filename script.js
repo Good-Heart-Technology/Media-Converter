@@ -19,6 +19,7 @@ let dropZone;
 let fileInput;
 let conversionOptions;
 let currentFile = null;
+let ffmpeg = null;
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -168,7 +169,7 @@ function handleFileSelect(e) {
     handleFiles(files);
 }
 
-function handleFiles(files) {
+async function handleFiles(files) {
     if (!files || files.length === 0) {
         Logger.warn('No files provided');
         return;
@@ -208,6 +209,20 @@ function handleFiles(files) {
     }
 
     currentFile = file;
+    
+    // If it's a video file, initialize FFmpeg before showing options
+    if (file.type.startsWith('video/')) {
+        try {
+            Logger.info('Video file detected, initializing FFmpeg...');
+            await initFFmpeg();
+            Logger.info('FFmpeg initialized successfully');
+        } catch (error) {
+            Logger.error('Failed to initialize FFmpeg', error);
+            showMessage('Failed to initialize video converter. Please refresh the page and try again.', 'error');
+            return;
+        }
+    }
+    
     Logger.info('File validated successfully, showing conversion options');
     showConversionOptions(file.type, validation.extension);
 }
@@ -306,23 +321,14 @@ function showConversionOptions(fileType, fileExtension) {
     conversionOptions.appendChild(progressContainer);
 }
 
-// Video conversion functions
-let ffmpeg = null;
-
+// FFmpeg initialization
 async function initFFmpeg() {
     try {
         if (!ffmpeg) {
-            Logger.info('Initializing FFmpeg...');
+            Logger.info('Creating new FFmpeg instance...');
             
-            // Wait for FFmpeg to be available
-            if (typeof FFmpeg === 'undefined') {
-                Logger.error('FFmpeg library not loaded');
-                throw new Error('FFmpeg library not loaded. Please ensure ffmpeg.js is present in the lib directory.');
-            }
-
             // Create FFmpeg instance
             ffmpeg = new FFmpeg();
-            Logger.debug('FFmpeg instance created');
             
             // Set up logging
             ffmpeg.on('log', ({ message }) => {
@@ -339,16 +345,16 @@ async function initFFmpeg() {
             // Load FFmpeg
             Logger.info('Loading FFmpeg...');
             await ffmpeg.load();
-            Logger.info('FFmpeg initialized successfully');
+            Logger.info('FFmpeg loaded successfully');
         }
         return true;
     } catch (error) {
         Logger.error('Failed to initialize FFmpeg', error);
-        showMessage('Failed to initialize FFmpeg. Please ensure ffmpeg.js is present in the lib directory and refresh the page.', 'error');
-        return false;
+        throw error;
     }
 }
 
+// Video conversion function
 async function convertVideo(inputFile, outputFormat) {
     try {
         Logger.info('Starting video conversion', {
@@ -356,13 +362,10 @@ async function convertVideo(inputFile, outputFormat) {
             outputFormat: outputFormat
         });
 
-        // Initialize FFmpeg if not already initialized
+        // Ensure FFmpeg is initialized
         if (!ffmpeg) {
             Logger.debug('FFmpeg not initialized, initializing...');
-            const initialized = await initFFmpeg();
-            if (!initialized) {
-                throw new Error('Failed to initialize FFmpeg');
-            }
+            await initFFmpeg();
         }
 
         // Show warning about conversion time
