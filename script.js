@@ -248,6 +248,7 @@ async function initFFmpeg() {
             log: true,
             corePath: './lib/ffmpeg-core.js',
             wasmPath: './lib/ffmpeg-core.wasm',
+            workerPath: './lib/ffmpeg-core.worker.js',
             mainName: 'main',
             progress: ({ ratio }) => {
                 const progressBar = document.querySelector('.progress-fill');
