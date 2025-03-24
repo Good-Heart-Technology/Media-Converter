@@ -19,7 +19,7 @@ let currentFile = null;
 const SUPPORTED_MIME_TYPES = {
     'image': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml'],
     'audio': ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
-    'video': ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/x-matroska'],
+    'video': ['video/mp4', 'video/webm', 'video/gif'],
     'archive': [
         'application/zip',
         'application/x-rar-compressed',
@@ -40,7 +40,7 @@ function getSupportedFormats(fileType, fileExtension) {
     const formats = {
         'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
         'audio': ['MP3', 'WAV', 'OGG'],
-        'video': ['MP4', 'MOV', 'AVI', 'WMV', 'MKV'],
+        'video': ['MP4', 'WEBM', 'GIF'],
         'archive': ['ZIP', 'RAR', '7Z']
     };
 
@@ -230,11 +230,18 @@ async function initFFmpeg() {
     try {
         // Check for SharedArrayBuffer support
         if (typeof SharedArrayBuffer === 'undefined') {
-            throw new Error(
-                'Your browser does not support SharedArrayBuffer. ' +
-                'This is required for video conversion. ' +
-                'Please try using a modern browser like Chrome, Edge, or Firefox.'
-            );
+            // Try to enable SharedArrayBuffer
+            if (crossOriginIsolated) {
+                throw new Error(
+                    'SharedArrayBuffer is not available despite cross-origin isolation. ' +
+                    'Please ensure you are using a modern browser and the site is served with the correct security headers.'
+                );
+            } else {
+                throw new Error(
+                    'This feature requires cross-origin isolation to be enabled. ' +
+                    'Please ensure the site is served with the correct security headers (COOP and COEP).'
+                );
+            }
         }
 
         ffmpeg = createFFmpeg({
@@ -261,8 +268,8 @@ async function initFFmpeg() {
         let errorMessage = 'Failed to initialize FFmpeg. ';
         
         if (error.message.includes('SharedArrayBuffer')) {
-            errorMessage += 'This feature requires a modern browser that supports SharedArrayBuffer. ';
-            errorMessage += 'Please try using Chrome, Edge, or Firefox.';
+            errorMessage += 'This feature requires specific security settings. ';
+            errorMessage += 'Please ensure you are using a modern browser and the site is served with the correct security headers.';
         } else if (error.message.includes('Failed to fetch')) {
             errorMessage += 'Failed to load FFmpeg core files. Please ensure all required files are present in the lib directory.';
         } else {
@@ -299,17 +306,21 @@ async function convertVideo(inputFile, outputFormat) {
             case 'mp4':
                 outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
                 break;
-            case 'mov':
-                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
+            case 'webm':
+                // WebM uses VP8/VP9 video codec and Opus audio codec
+                outputOptions = [
+                    '-c:v', 'libvpx-vp9',  // VP9 video codec
+                    '-b:v', '2M',          // Video bitrate
+                    '-c:a', 'libopus',     // Opus audio codec
+                    '-b:a', '128k'         // Audio bitrate
+                ];
                 break;
-            case 'avi':
-                outputOptions = ['-c:v', 'libx264', '-c:a', 'mp3'];
-                break;
-            case 'wmv':
-                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
-                break;
-            case 'mkv':
-                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
+            case 'gif':
+                // For GIF, we need to extract frames and create an animated GIF
+                outputOptions = [
+                    '-vf', 'fps=10,scale=480:-1:flags=lanczos',  // 10 FPS, scale width to 480px
+                    '-f', 'gif'
+                ];
                 break;
             default:
                 throw new Error('Unsupported output format');
