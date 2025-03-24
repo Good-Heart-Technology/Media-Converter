@@ -324,6 +324,12 @@ function showConversionOptions(fileType, fileExtension) {
 // FFmpeg initialization
 async function initFFmpeg() {
     try {
+        // Wait for FFmpeg to be available
+        if (typeof FFmpeg === 'undefined') {
+            Logger.error('FFmpeg library not loaded');
+            throw new Error('FFmpeg library not loaded. Please ensure ffmpeg.js is present in the lib directory.');
+        }
+
         if (!ffmpeg) {
             Logger.info('Creating new FFmpeg instance...');
             
