@@ -14,6 +14,12 @@ const Logger = {
     }
 };
 
+// UI Elements
+let dropZone;
+let fileInput;
+let conversionOptions;
+let currentFile = null;
+
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     Logger.info('DOM Content Loaded, initializing application...');
@@ -33,12 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage('Failed to initialize application. Please refresh the page.', 'error');
     }
 });
-
-// UI Elements
-let dropZone;
-let fileInput;
-let conversionOptions;
-let currentFile = null;
 
 // Initialize UI elements
 function initializeUI() {
@@ -63,7 +63,7 @@ function initializeUI() {
 // Set up event listeners
 function setupEventListeners() {
     if (!dropZone || !fileInput) {
-        console.error('Cannot set up event listeners: required elements not found');
+        Logger.error('Cannot set up event listeners: required elements not found');
         return;
     }
 
@@ -90,7 +90,7 @@ function updateFooterYear() {
     if (yearElement) {
         yearElement.textContent = new Date().getFullYear();
     } else {
-        console.warn('Footer year element not found');
+        Logger.warn('Footer year element not found');
     }
 }
 
