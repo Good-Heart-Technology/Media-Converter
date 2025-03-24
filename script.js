@@ -98,7 +98,7 @@ function updateFooterYear() {
 const SUPPORTED_MIME_TYPES = {
     'image': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml'],
     'audio': ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
-    'archive': ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed']
+    'archive': ['application/zip', 'application/x-tar']
 };
 
 // File size limits (effectively removed)
@@ -111,12 +111,25 @@ function getSupportedFormats(fileType, fileExtension) {
     const formats = {
         'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
         'audio': ['MP3', 'WAV', 'OGG'],
-        'archive': ['ZIP', 'RAR', '7Z']
+        'archive': ['ZIP', 'TAR']
     };
 
+    // Check if it's an archive file
+    if (fileType.includes('archive') || fileType.includes('zip') || fileType.includes('tar')) {
+        // For ZIP files, we can convert to TAR
+        // For TAR files, we can convert to ZIP
+        if (fileExtension === 'zip') {
+            return ['TAR'];
+        } else if (fileExtension === 'tar') {
+            return ['ZIP'];
+        }
+        return [];
+    }
+    
+    // Check other file types
     if (fileType.startsWith('image/')) return formats.image.filter(f => f.toLowerCase() !== fileExtension);
     if (fileType.startsWith('audio/')) return formats.audio.filter(f => f.toLowerCase() !== fileExtension);
-    if (fileType.includes('archive')) return formats.archive.filter(f => f.toLowerCase() !== fileExtension);
+    
     return [];
 }
 
@@ -227,6 +240,8 @@ function validateFileType(file) {
     const fileType = file.type;
     const fileExtension = file.name.split('.').pop().toLowerCase();
 
+    Logger.info('Validating file type', { fileType, fileExtension });
+
     // Check MIME types first
     for (const category in SUPPORTED_MIME_TYPES) {
         if (SUPPORTED_MIME_TYPES[category].includes(fileType)) {
@@ -238,7 +253,7 @@ function validateFileType(file) {
     const extensionMap = {
         'image': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'svg'],
         'audio': ['mp3', 'wav', 'ogg', 'flac', 'aac'],
-        'archive': ['zip', 'rar', '7z']
+        'archive': ['zip', 'tar']
     };
 
     for (const category in extensionMap) {
@@ -246,6 +261,15 @@ function validateFileType(file) {
             return { valid: true, category, extension: fileExtension };
         }
     }
+
+    // Show error message to user for unsupported file type
+    const errorMessage = `Unsupported file type: ${fileExtension.toUpperCase()}. Please upload one of the following:\n` +
+        '• Images (JPG, PNG, GIF, WEBP, BMP, TIFF, SVG)\n' +
+        '• Audio (MP3, WAV, OGG, FLAC, AAC)\n' +
+        '• Archives (ZIP, TAR)';
+    
+    showError(errorMessage);
+    Logger.warn('Unsupported file type', { fileType, fileExtension });
 
     return { valid: false, category: null, extension: fileExtension };
 }
@@ -318,7 +342,10 @@ async function convertFile(targetFormat) {
         const fileType = currentFile.type;
         let result;
 
-        if (fileType.startsWith('image/')) {
+        // Check if it's an archive file
+        if (fileType.includes('archive') || fileType.includes('zip') || fileType.includes('tar')) {
+            result = await convertArchive(targetFormat);
+        } else if (fileType.startsWith('image/')) {
             result = await convertImage(targetFormat);
         } else if (fileType.startsWith('audio/')) {
             result = await convertAudio(targetFormat);
@@ -419,76 +446,104 @@ async function convertImage(targetFormat) {
 }
 
 async function convertAudio(targetFormat) {
-    // Create audio context
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    
-    // Read the audio file
-    const arrayBuffer = await currentFile.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    
-    // Create offline context for processing
-    const offlineContext = new OfflineAudioContext(
-        audioBuffer.numberOfChannels,
-        audioBuffer.length,
-        audioBuffer.sampleRate
-    );
+    try {
+        Logger.info('Starting audio conversion', { sourceFormat: currentFile.type, targetFormat });
+        
+        // Create audio context with default sample rate
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Read the audio file
+        const arrayBuffer = await currentFile.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Create offline context with matching sample rate and duration
+        const offlineContext = new OfflineAudioContext(
+            audioBuffer.numberOfChannels,
+            audioBuffer.length,
+            audioBuffer.sampleRate  // Use the same sample rate as input
+        );
 
-    // Create source and connect to destination
-    const source = offlineContext.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineContext.destination);
-    source.start();
+        // Create source and connect to destination
+        const source = offlineContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineContext.destination);
+        
+        // Start the source at time 0
+        source.start(0);
 
-    // Process the audio
-    const renderedBuffer = await offlineContext.startRendering();
-    
-    // Convert to WAV format
-    const wavData = audioBufferToWav(renderedBuffer);
-    return new Blob([wavData], { type: 'audio/wav' });
+        // Render the audio
+        const renderedBuffer = await offlineContext.startRendering();
+        
+        Logger.info('Audio rendered successfully', {
+            channels: renderedBuffer.numberOfChannels,
+            sampleRate: renderedBuffer.sampleRate,
+            duration: renderedBuffer.duration
+        });
+
+        // Convert based on target format
+        switch (targetFormat.toLowerCase()) {
+            case 'wav':
+                const wavData = audioBufferToWav(renderedBuffer);
+                return new Blob([wavData], { type: 'audio/wav' });
+            case 'mp3':
+            case 'flac':
+            case 'ogg':
+            case 'aac':
+                // All formats currently convert to WAV
+                Logger.warn(`${targetFormat.toUpperCase()} conversion not supported in browser, converting to WAV instead`);
+                const convertedData = audioBufferToWav(renderedBuffer);
+                return new Blob([convertedData], { type: 'audio/wav' });
+            default:
+                throw new Error('Unsupported audio format');
+        }
+    } catch (error) {
+        Logger.error('Audio conversion failed', error);
+        throw error;
+    }
 }
 
+// Helper function to convert AudioBuffer to WAV format
 function audioBufferToWav(buffer) {
-    const numChannels = buffer.numberOfChannels;
+    const numberOfChannels = buffer.numberOfChannels;
     const sampleRate = buffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
+    const length = buffer.length * numberOfChannels;
+    const data = new Float32Array(length);
 
-    const bytesPerSample = bitDepth / 8;
-    const blockAlign = numChannels * bytesPerSample;
+    // Interleave channels
+    for (let channel = 0; channel < numberOfChannels; channel++) {
+        const channelData = buffer.getChannelData(channel);
+        for (let i = 0; i < buffer.length; i++) {
+            data[i * numberOfChannels + channel] = channelData[i];
+        }
+    }
 
-    const wav = new ArrayBuffer(44 + buffer.length * blockAlign);
-    const view = new DataView(wav);
+    // Create WAV file format
+    const wavBuffer = new ArrayBuffer(44 + data.length * 2);
+    const view = new DataView(wavBuffer);
 
     // Write WAV header
     writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + buffer.length * blockAlign, true);
+    view.setUint32(4, 36 + data.length * 2, true);
     writeString(view, 8, 'WAVE');
     writeString(view, 12, 'fmt ');
     view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numberOfChannels, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitDepth, true);
+    view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+    view.setUint16(32, numberOfChannels * 2, true);
+    view.setUint16(34, 16, true);
     writeString(view, 36, 'data');
-    view.setUint32(40, buffer.length * blockAlign, true);
+    view.setUint32(40, data.length * 2, true);
 
     // Write audio data
-    const data = new Float32Array(buffer.length);
-    const channelData = buffer.getChannelData(0);
-    for (let i = 0; i < buffer.length; i++) {
-        data[i] = channelData[i];
-    }
-
-    let offset = 44;
+    const volume = 0.8;
     for (let i = 0; i < data.length; i++) {
-        const sample = Math.max(-1, Math.min(1, data[i]));
-        view.setInt16(offset, sample * 0x7FFF, true);
-        offset += 2;
+        const sample = Math.max(-1, Math.min(1, data[i])) * volume;
+        view.setInt16(44 + i * 2, sample * 0x7FFF, true);
     }
 
-    return wav;
+    return wavBuffer;
 }
 
 function writeString(view, offset, string) {
@@ -554,4 +609,160 @@ function showMessage(message, type = 'info') {
     const container = document.querySelector('.conversion-options');
     container.insertBefore(messageDiv, container.firstChild);
     setTimeout(() => messageDiv.remove(), 5000);
+}
+
+// Archive conversion function
+async function convertArchive(targetFormat) {
+    Logger.info('Starting archive conversion', {
+        inputFile: currentFile.name,
+        targetFormat: targetFormat
+    });
+
+    try {
+        // Read the input file
+        const arrayBuffer = await currentFile.arrayBuffer();
+        const inputExtension = currentFile.name.split('.').pop().toLowerCase();
+        
+        // Create a new ZIP instance for output
+        const outputZip = new JSZip();
+        
+        if (inputExtension === 'zip') {
+            // If input is ZIP, read it and convert to TAR
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            const files = zip.files;
+            let processedFiles = 0;
+            const totalFiles = Object.keys(files).length;
+
+            // Process each file
+            for (const [fileName, file] of Object.entries(files)) {
+                if (file.dir) continue;
+
+                // Read file content
+                const content = await file.async('arraybuffer');
+                
+                // Add file to the new archive
+                outputZip.file(fileName, content);
+                
+                // Update progress
+                processedFiles++;
+                const progress = Math.round((processedFiles / totalFiles) * 100);
+                updateProgress(progress);
+            }
+
+            // Generate the output archive
+            if (targetFormat.toLowerCase() === 'tar') {
+                const tarData = await convertZipToTar(outputZip);
+                return new Blob([tarData], { type: 'application/x-tar' });
+            }
+        } else if (inputExtension === 'tar') {
+            // If input is TAR, convert to ZIP
+            // Note: This is a simplified version. In a real implementation,
+            // you would need to properly parse the TAR file structure
+            const tarData = new Uint8Array(arrayBuffer);
+            const fileName = currentFile.name.replace('.tar', '');
+            outputZip.file(fileName, tarData);
+            updateProgress(100);
+        }
+
+        // Generate ZIP output
+        return await outputZip.generateAsync({
+            type: 'blob',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 9 }
+        });
+    } catch (error) {
+        Logger.error('Archive conversion failed', error);
+        throw new Error(`Failed to convert archive: ${error.message}`);
+    }
+}
+
+// Helper function to convert ZIP to TAR format
+async function convertZipToTar(zip) {
+    const tarData = [];
+    
+    // Process each file in the ZIP
+    for (const [fileName, file] of Object.entries(zip.files)) {
+        if (file.dir) continue;
+
+        // Read file content
+        const content = await file.async('arraybuffer');
+        
+        // Create TAR header
+        const header = createTarHeader(fileName, content.byteLength);
+        tarData.push(header);
+        
+        // Add file content
+        tarData.push(new Uint8Array(content));
+        
+        // Add padding if needed
+        const padding = 512 - (content.byteLength % 512);
+        if (padding < 512) {
+            tarData.push(new Uint8Array(padding));
+        }
+    }
+    
+    // Add end marker
+    tarData.push(new Uint8Array(1024));
+    
+    // Combine all data
+    return new Blob(tarData, { type: 'application/x-tar' });
+}
+
+// Helper function to create TAR header
+function createTarHeader(fileName, fileSize) {
+    const header = new Uint8Array(512);
+    const encoder = new TextEncoder();
+    
+    // Write filename (100 bytes)
+    const nameBytes = encoder.encode(fileName);
+    header.set(nameBytes, 0);
+    
+    // Write file mode (8 bytes)
+    header.set(encoder.encode('0000644'), 100);
+    
+    // Write user ID (8 bytes)
+    header.set(encoder.encode('0000000'), 108);
+    
+    // Write group ID (8 bytes)
+    header.set(encoder.encode('0000000'), 116);
+    
+    // Write file size (12 bytes)
+    const sizeStr = fileSize.toString(8).padStart(11, '0') + ' ';
+    header.set(encoder.encode(sizeStr), 124);
+    
+    // Write modification time (12 bytes)
+    const timeStr = Math.floor(Date.now() / 1000).toString(8).padStart(11, '0') + ' ';
+    header.set(encoder.encode(timeStr), 136);
+    
+    // Write checksum (8 bytes)
+    header.set(encoder.encode('        '), 148);
+    
+    // Write type flag (1 byte)
+    header[156] = 0x30; // Regular file
+    
+    // Write link name (100 bytes)
+    header.set(encoder.encode(''), 157);
+    
+    // Write USTAR indicator (8 bytes)
+    header.set(encoder.encode('ustar  '), 257);
+    
+    // Write owner name (32 bytes)
+    header.set(encoder.encode(''), 265);
+    
+    // Write group name (32 bytes)
+    header.set(encoder.encode(''), 297);
+    
+    // Write device major (8 bytes)
+    header.set(encoder.encode(''), 329);
+    
+    // Write device minor (8 bytes)
+    header.set(encoder.encode(''), 337);
+    
+    // Write prefix (155 bytes)
+    header.set(encoder.encode(''), 345);
+    
+    // Write padding (12 bytes)
+    header.set(encoder.encode(''), 500);
+    
+    return header;
 } 

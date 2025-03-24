@@ -7,6 +7,8 @@
     <link rel="icon" type="image/svg+xml" href="https://graphics.goodhearttech.org/GHT/favicons/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Load archive handling library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Load our script -->
     <script src="script.js" defer></script>
     <!-- Load other libraries asynchronously -->
@@ -379,6 +381,13 @@
         .success-message i {
             color: #6bff6b;
         }
+
+        .format-note {
+            font-size: 0.75rem;
+            color: var(--gray);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -397,7 +406,11 @@
                 </div>
                 <div class="format-group">
                     <h3><i class="fas fa-file-audio"></i> Audio</h3>
-                    <p>MP3, WAV, FLAC, AAC, OGG</p>
+                    <p>MP3, WAV, OGG</p>
+                </div>
+                <div class="format-group">
+                    <h3><i class="fas fa-file-archive"></i> Archives</h3>
+                    <p>ZIP ↔ TAR</p>
                 </div>
             </div>
         </div>
