@@ -7,9 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="https://graphics.goodhearttech.org/GHT/favicons/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Load FFmpeg.js first -->
-    <script src="lib/ffmpeg.js" onerror="console.error('Failed to load FFmpeg library. Please ensure ffmpeg.js is present in the lib directory.')"></script>
-    <!-- Load our script after FFmpeg.js -->
+    <!-- Load our script -->
     <script src="script.js" defer></script>
     <!-- Load other libraries asynchronously -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" defer></script>
@@ -400,10 +398,6 @@
                 <div class="format-group">
                     <h3><i class="fas fa-file-audio"></i> Audio</h3>
                     <p>MP3, WAV, FLAC, AAC, OGG</p>
-                </div>
-                <div class="format-group">
-                    <h3><i class="fas fa-file-video"></i> Video</h3>
-                    <p>MP4, WEBM, GIF</p>
                 </div>
             </div>
         </div>

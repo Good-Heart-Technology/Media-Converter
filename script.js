@@ -19,7 +19,6 @@ let dropZone;
 let fileInput;
 let conversionOptions;
 let currentFile = null;
-let ffmpeg = null;
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -99,7 +98,6 @@ function updateFooterYear() {
 const SUPPORTED_MIME_TYPES = {
     'image': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml'],
     'audio': ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
-    'video': ['video/mp4', 'video/webm', 'video/gif'],
     'archive': ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed']
 };
 
@@ -113,13 +111,11 @@ function getSupportedFormats(fileType, fileExtension) {
     const formats = {
         'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
         'audio': ['MP3', 'WAV', 'OGG'],
-        'video': ['MP4', 'WEBM', 'GIF'],
         'archive': ['ZIP', 'RAR', '7Z']
     };
 
     if (fileType.startsWith('image/')) return formats.image.filter(f => f.toLowerCase() !== fileExtension);
     if (fileType.startsWith('audio/')) return formats.audio.filter(f => f.toLowerCase() !== fileExtension);
-    if (fileType.startsWith('video/')) return formats.video.filter(f => f.toLowerCase() !== fileExtension);
     if (fileType.includes('archive')) return formats.archive.filter(f => f.toLowerCase() !== fileExtension);
     return [];
 }
@@ -209,20 +205,6 @@ async function handleFiles(files) {
     }
 
     currentFile = file;
-    
-    // If it's a video file, initialize FFmpeg before showing options
-    if (file.type.startsWith('video/')) {
-        try {
-            Logger.info('Video file detected, initializing FFmpeg...');
-            await initFFmpeg();
-            Logger.info('FFmpeg initialized successfully');
-        } catch (error) {
-            Logger.error('Failed to initialize FFmpeg', error);
-            showMessage('Failed to initialize video converter. Please refresh the page and try again.', 'error');
-            return;
-        }
-    }
-    
     Logger.info('File validated successfully, showing conversion options');
     showConversionOptions(file.type, validation.extension);
 }
@@ -256,7 +238,6 @@ function validateFileType(file) {
     const extensionMap = {
         'image': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'svg'],
         'audio': ['mp3', 'wav', 'ogg', 'flac', 'aac'],
-        'video': ['mp4', 'webm', 'gif'],
         'archive': ['zip', 'rar', '7z']
     };
 
@@ -321,148 +302,6 @@ function showConversionOptions(fileType, fileExtension) {
     conversionOptions.appendChild(progressContainer);
 }
 
-// FFmpeg initialization
-async function initFFmpeg() {
-    try {
-        // Wait for FFmpeg to be available
-        if (typeof FFmpeg === 'undefined') {
-            Logger.error('FFmpeg library not loaded');
-            throw new Error('FFmpeg library not loaded. Please ensure ffmpeg.js is present in the lib directory.');
-        }
-
-        if (!ffmpeg) {
-            Logger.info('Creating new FFmpeg instance...');
-            
-            // Create FFmpeg instance
-            ffmpeg = new FFmpeg();
-            
-            // Set up logging
-            ffmpeg.on('log', ({ message }) => {
-                Logger.debug('FFmpeg log', { message });
-            });
-
-            // Set up progress handling
-            ffmpeg.on('progress', ({ progress }) => {
-                const percent = Math.round(progress * 100);
-                Logger.debug('FFmpeg progress', { progress: percent });
-                updateProgress(percent);
-            });
-
-            // Load FFmpeg
-            Logger.info('Loading FFmpeg...');
-            await ffmpeg.load();
-            Logger.info('FFmpeg loaded successfully');
-        }
-        return true;
-    } catch (error) {
-        Logger.error('Failed to initialize FFmpeg', error);
-        throw error;
-    }
-}
-
-// Video conversion function
-async function convertVideo(inputFile, outputFormat) {
-    try {
-        Logger.info('Starting video conversion', {
-            inputFile: inputFile.name,
-            outputFormat: outputFormat
-        });
-
-        // Ensure FFmpeg is initialized
-        if (!ffmpeg) {
-            Logger.debug('FFmpeg not initialized, initializing...');
-            await initFFmpeg();
-        }
-
-        // Show warning about conversion time
-        showMessage('Converting video... This may take a few minutes.', 'warning');
-        
-        // Write the input file to memory
-        const inputFileName = 'input' + getFileExtension(inputFile.name);
-        Logger.debug('Reading input file', { fileName: inputFileName });
-        const inputData = await inputFile.arrayBuffer();
-        await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
-        Logger.debug('Input file written to FFmpeg memory');
-
-        // Set output filename
-        const outputFileName = `output.${outputFormat.toLowerCase()}`;
-        Logger.debug('Setting up output file', { fileName: outputFileName });
-
-        // Configure conversion options based on format
-        let outputOptions = [];
-        switch (outputFormat.toLowerCase()) {
-            case 'mp4':
-                outputOptions = [
-                    '-c:v', 'libx264',     // H.264 video codec
-                    '-preset', 'medium',    // Encoding preset
-                    '-crf', '23',          // Quality level (0-51, lower is better)
-                    '-c:a', 'aac',         // AAC audio codec
-                    '-b:a', '128k'         // Audio bitrate
-                ];
-                break;
-            case 'webm':
-                outputOptions = [
-                    '-c:v', 'libvpx-vp9',  // VP9 video codec
-                    '-b:v', '2M',          // Video bitrate
-                    '-c:a', 'libopus',     // Opus audio codec
-                    '-b:a', '128k'         // Audio bitrate
-                ];
-                break;
-            case 'gif':
-                outputOptions = [
-                    '-vf', 'fps=10,scale=480:-1:flags=lanczos',  // 10 FPS, scale width to 480px
-                    '-f', 'gif'
-                ];
-                break;
-            default:
-                throw new Error('Unsupported output format');
-        }
-        Logger.debug('FFmpeg options configured', { options: outputOptions });
-
-        // Run FFmpeg command
-        Logger.info('Running FFmpeg command...');
-        await ffmpeg.exec([
-            '-i', inputFileName,
-            ...outputOptions,
-            outputFileName
-        ]);
-        Logger.debug('FFmpeg command completed');
-
-        // Read the output file
-        Logger.debug('Reading output file');
-        const data = await ffmpeg.readFile(outputFileName);
-        Logger.debug('Output file read successfully');
-
-        // Clean up files in memory
-        Logger.debug('Cleaning up temporary files');
-        await ffmpeg.deleteFile(inputFileName);
-        await ffmpeg.deleteFile(outputFileName);
-        Logger.debug('Cleanup completed');
-
-        // Create download URL
-        Logger.debug('Creating download URL');
-        const blob = new Blob([data.buffer], { type: `video/${outputFormat}` });
-        const url = URL.createObjectURL(blob);
-
-        // Trigger download
-        Logger.info('Starting download');
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `converted_video.${outputFormat}`;
-        link.click();
-
-        // Clean up
-        URL.revokeObjectURL(url);
-        Logger.info('Video conversion completed successfully');
-        showMessage('Video conversion completed successfully!', 'success');
-
-    } catch (error) {
-        Logger.error('Error during video conversion', error);
-        showMessage(`Failed to convert video: ${error.message}`, 'error');
-        throw error;
-    }
-}
-
 // Conversion Functions
 async function convertFile(targetFormat) {
     if (!currentFile) {
@@ -483,8 +322,6 @@ async function convertFile(targetFormat) {
             result = await convertImage(targetFormat);
         } else if (fileType.startsWith('audio/')) {
             result = await convertAudio(targetFormat);
-        } else if (fileType.startsWith('video/')) {
-            result = await convertVideo(currentFile, targetFormat);
         } else {
             throw new Error('Unsupported file type for conversion.');
         }
