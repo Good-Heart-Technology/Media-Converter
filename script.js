@@ -1,41 +1,69 @@
-// Set current year in footer
-document.getElementById('currentYear').textContent = new Date().getFullYear();
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize UI elements
+    initializeUI();
+    // Set up event listeners
+    setupEventListeners();
+    // Set current year in footer
+    updateFooterYear();
+});
 
-// Import FFmpeg functions
-const { createFFmpeg, fetchFile } = FFmpeg;
-
-// Check if SheetJS is loaded
-if (typeof XLSX === 'undefined') {
-    console.error('SheetJS library not loaded!');
-}
-
-// File handling
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const conversionOptions = document.getElementById('conversionOptions');
+// UI Elements
+let dropZone;
+let fileInput;
+let conversionOptions;
 let currentFile = null;
 
-// Update SUPPORTED_MIME_TYPES for video formats
+// Initialize UI elements
+function initializeUI() {
+    dropZone = document.getElementById('dropZone');
+    fileInput = document.getElementById('fileInput');
+    conversionOptions = document.getElementById('conversionOptions');
+}
+
+// Set up event listeners
+function setupEventListeners() {
+    if (!dropZone || !fileInput) return;
+
+    dropZone.addEventListener('drop', handleDrop);
+    fileInput.addEventListener('change', handleFileSelect);
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults);
+        document.body.addEventListener(eventName, preventDefaults);
+    });
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight);
+    });
+}
+
+// Update footer year
+function updateFooterYear() {
+    const yearElement = document.getElementById('currentYear');
+    if (yearElement) {
+        yearElement.textContent = new Date().getFullYear();
+    }
+}
+
+// Supported file types and formats
 const SUPPORTED_MIME_TYPES = {
     'image': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml'],
     'audio': ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
     'video': ['video/mp4', 'video/webm', 'video/gif'],
-    'archive': [
-        'application/zip',
-        'application/x-rar-compressed',
-        'application/x-7z-compressed'
-    ]
+    'archive': ['application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed']
 };
 
-// Remove file size limits
+// File size limits (effectively removed)
 const FILE_SIZE_LIMITS = {
-    'default': Number.MAX_SAFE_INTEGER  // Effectively removes size limits
+    'default': Number.MAX_SAFE_INTEGER
 };
 
-function getFileSizeLimit(fileType) {
-    return FILE_SIZE_LIMITS.default;
-}
-
+// Get supported formats for a file type
 function getSupportedFormats(fileType, fileExtension) {
     const formats = {
         'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
@@ -51,32 +79,18 @@ function getSupportedFormats(fileType, fileExtension) {
     return [];
 }
 
-// Event Listeners
-dropZone.addEventListener('drop', handleDrop);
-fileInput.addEventListener('change', handleFileSelect);
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults);
-    document.body.addEventListener(eventName, preventDefaults);
-});
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, highlight);
-});
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, unhighlight);
-});
-
-// Basic UI Functions
+// UI Helper Functions
 function preventDefaults(e) {
     e.preventDefault();
     e.stopPropagation();
 }
 
 function highlight(e) {
-    dropZone.classList.add('highlight');
+    if (dropZone) dropZone.classList.add('highlight');
 }
 
 function unhighlight(e) {
-    dropZone.classList.remove('highlight');
+    if (dropZone) dropZone.classList.remove('highlight');
 }
 
 function formatFileSize(bytes) {
@@ -109,38 +123,45 @@ function handleFileSelect(e) {
 }
 
 function handleFiles(files) {
-    if (files.length === 0) return;
+    if (!files || files.length === 0) return;
     
     const file = files[0];
     
     // Special handling for PDF files
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        const warningMessage = document.createElement('div');
-        warningMessage.className = 'warning-message';
-        warningMessage.innerHTML = `
-            <i class="fas fa-info-circle"></i>
-            For PDF file conversions, we recommend using this tool, which can do pretty much anything with PDFs:
-            <a href="http://pdf.nonprofittools.org/" target="_blank" style="color: inherit; text-decoration: underline;">PDF Tools (Stirling PDF)</a>
-        `;
-        document.querySelector('.upload-section').appendChild(warningMessage);
+        showPDFWarning();
         return;
     }
 
     const validation = validateFileType(file);
     
     if (!validation.valid) {
-        alert(`Unsupported file type: ${file.name}\nPlease check the supported formats list below.`);
+        showMessage(`Unsupported file type: ${file.name}\nPlease check the supported formats list below.`, 'error');
         return;
     }
 
-    const sizeLimit = getFileSizeLimit(file.type);
+    const sizeLimit = FILE_SIZE_LIMITS.default;
     if (file.size > sizeLimit) {
-        alert(`File size exceeds the limit of ${formatFileSize(sizeLimit)}. Please choose a smaller file.`);
+        showMessage(`File size exceeds the limit of ${formatFileSize(sizeLimit)}. Please choose a smaller file.`, 'error');
         return;
     }
 
     currentFile = file;
     showConversionOptions(file.type, validation.extension);
+}
+
+function showPDFWarning() {
+    const warningMessage = document.createElement('div');
+    warningMessage.className = 'warning-message';
+    warningMessage.innerHTML = `
+        <i class="fas fa-info-circle"></i>
+        For PDF file conversions, we recommend using this tool, which can do pretty much anything with PDFs:
+        <a href="http://pdf.nonprofittools.org/" target="_blank" style="color: inherit; text-decoration: underline;">PDF Tools (Stirling PDF)</a>
+    `;
+    const uploadSection = document.querySelector('.upload-section');
+    if (uploadSection) {
+        uploadSection.appendChild(warningMessage);
+    }
 }
 
 function validateFileType(file) {
@@ -158,7 +179,7 @@ function validateFileType(file) {
     const extensionMap = {
         'image': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'svg'],
         'audio': ['mp3', 'wav', 'ogg', 'flac', 'aac'],
-        'video': ['mp4', 'mov', 'avi', 'wmv', 'mkv'],
+        'video': ['mp4', 'webm', 'gif'],
         'archive': ['zip', 'rar', '7z']
     };
 
@@ -228,55 +249,23 @@ let ffmpeg = null;
 
 async function initFFmpeg() {
     try {
-        // Check for SharedArrayBuffer support
-        if (typeof SharedArrayBuffer === 'undefined') {
-            // Try to enable SharedArrayBuffer
-            if (crossOriginIsolated) {
-                throw new Error(
-                    'SharedArrayBuffer is not available despite cross-origin isolation. ' +
-                    'Please ensure you are using a modern browser and the site is served with the correct security headers.'
-                );
-            } else {
-                throw new Error(
-                    'This feature requires cross-origin isolation to be enabled. ' +
-                    'Please ensure the site is served with the correct security headers (COOP and COEP).'
-                );
-            }
-        }
+        if (!ffmpeg) {
+            // Create FFmpeg instance
+            ffmpeg = new FFmpeg();
+            
+            // Set up logging
+            ffmpeg.on('log', ({ message }) => {
+                console.log(message);
+            });
 
-        ffmpeg = createFFmpeg({
-            log: true,
-            corePath: './lib/ffmpeg-core.js',
-            wasmPath: './lib/ffmpeg-core.wasm',
-            workerPath: './lib/ffmpeg-core.worker.js',
-            mainName: 'main',
-            progress: ({ ratio }) => {
-                const progressBar = document.querySelector('.progress-fill');
-                const progressText = document.querySelector('.progress-text');
-                if (progressBar && progressText) {
-                    progressBar.style.width = `${(ratio * 100).toFixed(2)}%`;
-                    progressText.textContent = `Converting... ${(ratio * 100).toFixed(2)}%`;
-                }
-            }
-        });
-        
-        await ffmpeg.load();
-        console.log('FFmpeg initialized successfully');
+            // Load FFmpeg
+            await ffmpeg.load();
+            console.log('FFmpeg initialized successfully');
+        }
         return true;
     } catch (error) {
         console.error('Failed to initialize FFmpeg:', error);
-        let errorMessage = 'Failed to initialize FFmpeg. ';
-        
-        if (error.message.includes('SharedArrayBuffer')) {
-            errorMessage += 'This feature requires specific security settings. ';
-            errorMessage += 'Please ensure you are using a modern browser and the site is served with the correct security headers.';
-        } else if (error.message.includes('Failed to fetch')) {
-            errorMessage += 'Failed to load FFmpeg core files. Please ensure all required files are present in the lib directory.';
-        } else {
-            errorMessage += 'Please refresh the page and try again.';
-        }
-        
-        showMessage(errorMessage, 'error');
+        showMessage('Failed to initialize FFmpeg. Please refresh the page and try again.', 'error');
         return false;
     }
 }
@@ -286,7 +275,7 @@ async function convertVideo(inputFile, outputFormat) {
         if (!ffmpeg) {
             const initialized = await initFFmpeg();
             if (!initialized) {
-                throw new Error('Failed to initialize FFmpeg. Please refresh the page and try again.');
+                throw new Error('Failed to initialize FFmpeg');
             }
         }
 
@@ -295,19 +284,25 @@ async function convertVideo(inputFile, outputFormat) {
         
         // Write the input file to memory
         const inputFileName = 'input' + getFileExtension(inputFile.name);
-        ffmpeg.FS('writeFile', inputFileName, await fetchFile(inputFile));
+        const inputData = await inputFile.arrayBuffer();
+        await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
 
         // Set output filename
         const outputFileName = `output.${outputFormat.toLowerCase()}`;
 
-        // Determine codec based on format
+        // Configure conversion options based on format
         let outputOptions = [];
         switch (outputFormat.toLowerCase()) {
             case 'mp4':
-                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
+                outputOptions = [
+                    '-c:v', 'libx264',     // H.264 video codec
+                    '-preset', 'medium',    // Encoding preset
+                    '-crf', '23',          // Quality level (0-51, lower is better)
+                    '-c:a', 'aac',         // AAC audio codec
+                    '-b:a', '128k'         // Audio bitrate
+                ];
                 break;
             case 'webm':
-                // WebM uses VP8/VP9 video codec and Opus audio codec
                 outputOptions = [
                     '-c:v', 'libvpx-vp9',  // VP9 video codec
                     '-b:v', '2M',          // Video bitrate
@@ -316,7 +311,6 @@ async function convertVideo(inputFile, outputFormat) {
                 ];
                 break;
             case 'gif':
-                // For GIF, we need to extract frames and create an animated GIF
                 outputOptions = [
                     '-vf', 'fps=10,scale=480:-1:flags=lanczos',  // 10 FPS, scale width to 480px
                     '-f', 'gif'
@@ -327,18 +321,18 @@ async function convertVideo(inputFile, outputFormat) {
         }
 
         // Run FFmpeg command
-        await ffmpeg.run(
+        await ffmpeg.exec([
             '-i', inputFileName,
             ...outputOptions,
             outputFileName
-        );
+        ]);
 
         // Read the output file
-        const data = ffmpeg.FS('readFile', outputFileName);
+        const data = await ffmpeg.readFile(outputFileName);
 
         // Clean up files in memory
-        ffmpeg.FS('unlink', inputFileName);
-        ffmpeg.FS('unlink', outputFileName);
+        await ffmpeg.deleteFile(inputFileName);
+        await ffmpeg.deleteFile(outputFileName);
 
         // Create download URL
         const blob = new Blob([data.buffer], { type: `video/${outputFormat}` });

@@ -7,16 +7,15 @@
     <link rel="icon" type="image/svg+xml" href="https://graphics.goodhearttech.org/GHT/favicons/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- FFmpeg files -->
-    <script src="./lib/ffmpeg-core.js"></script>
-    <script src="./lib/ffmpeg.min.js"></script>
-    <!-- Other libraries -->
+    <!-- Load FFmpeg.js first -->
+    <script src="lib/ffmpeg.js"></script>
+    <!-- Load our script after FFmpeg.js -->
+    <script src="script.js"></script>
+    <!-- Load other libraries asynchronously -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pptx2json/1.21.1/pptx2json.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/odf-converter/1.0.0/odf-converter.min.js" defer></script>
-    <!-- Custom script -->
-    <script src="./script.js" defer></script>
     <style>
         :root {
             --primary-color: #7189ff;
@@ -388,7 +387,7 @@
     <div class="container">
         <header>
             <h1>Media Converter</h1>
-            <p class="subtitle">Convert your files between various formats with ease</p>
+            <p class="subtitle">Convert files between various formats.</p>
         </header>
 
         <div class="supported-formats">
@@ -404,7 +403,7 @@
                 </div>
                 <div class="format-group">
                     <h3><i class="fas fa-file-video"></i> Video</h3>
-                    <p>MP4, MOV, AVI, WMV, MKV</p>
+                    <p>MP4, WEBM, GIF</p>
                 </div>
             </div>
         </div>
