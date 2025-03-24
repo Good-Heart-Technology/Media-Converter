@@ -250,12 +250,16 @@ let ffmpeg = null;
 async function initFFmpeg() {
     try {
         if (!ffmpeg) {
-            // Create FFmpeg instance
-            ffmpeg = new FFmpeg();
+            // Create FFmpeg instance using the global FFmpeg object
+            ffmpeg = await FFmpeg.createFFmpeg({
+                log: true,
+                corePath: 'lib/ffmpeg-core.js',
+                wasmPath: 'lib/ffmpeg-core.wasm'
+            });
             
             // Set up logging
-            ffmpeg.on('log', ({ message }) => {
-                console.log(message);
+            ffmpeg.setLogger(({ type, message }) => {
+                console.log(`FFmpeg ${type}: ${message}`);
             });
 
             // Load FFmpeg
@@ -285,7 +289,7 @@ async function convertVideo(inputFile, outputFormat) {
         // Write the input file to memory
         const inputFileName = 'input' + getFileExtension(inputFile.name);
         const inputData = await inputFile.arrayBuffer();
-        await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
+        ffmpeg.FS('writeFile', inputFileName, new Uint8Array(inputData));
 
         // Set output filename
         const outputFileName = `output.${outputFormat.toLowerCase()}`;
@@ -321,18 +325,18 @@ async function convertVideo(inputFile, outputFormat) {
         }
 
         // Run FFmpeg command
-        await ffmpeg.exec([
+        await ffmpeg.run(
             '-i', inputFileName,
             ...outputOptions,
             outputFileName
-        ]);
+        );
 
         // Read the output file
-        const data = await ffmpeg.readFile(outputFileName);
+        const data = ffmpeg.FS('readFile', outputFileName);
 
         // Clean up files in memory
-        await ffmpeg.deleteFile(inputFileName);
-        await ffmpeg.deleteFile(outputFileName);
+        ffmpeg.FS('unlink', inputFileName);
+        ffmpeg.FS('unlink', outputFileName);
 
         // Create download URL
         const blob = new Blob([data.buffer], { type: `video/${outputFormat}` });
