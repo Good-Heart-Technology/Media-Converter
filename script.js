@@ -1,6 +1,9 @@
 // Set current year in footer
 document.getElementById('currentYear').textContent = new Date().getFullYear();
 
+// Import FFmpeg functions
+const { createFFmpeg, fetchFile } = FFmpeg;
+
 // Check if SheetJS is loaded
 if (typeof XLSX === 'undefined') {
     console.error('SheetJS library not loaded!');
@@ -224,148 +227,129 @@ function showConversionOptions(fileType, fileExtension) {
 let ffmpeg = null;
 
 async function initFFmpeg() {
-    if (ffmpeg) return ffmpeg;
-
     try {
-        // Create FFmpeg instance
-        ffmpeg = new FFmpeg();
+        // Check for SharedArrayBuffer support
+        if (typeof SharedArrayBuffer === 'undefined') {
+            // Try to enable SharedArrayBuffer
+            if (crossOriginIsolated) {
+                throw new Error(
+                    'SharedArrayBuffer is not available despite cross-origin isolation. ' +
+                    'Please ensure you are using a modern browser and the site is served with the correct security headers.'
+                );
+            } else {
+                throw new Error(
+                    'This feature requires cross-origin isolation to be enabled. ' +
+                    'Please ensure the site is served with the correct security headers (COOP and COEP).'
+                );
+            }
+        }
+
+        ffmpeg = createFFmpeg({
+            log: true,
+            corePath: 'lib/ffmpeg-core.js',
+            mainName: 'main',
+            progress: ({ ratio }) => {
+                const progressBar = document.querySelector('.progress-fill');
+                const progressText = document.querySelector('.progress-text');
+                if (progressBar && progressText) {
+                    progressBar.style.width = `${(ratio * 100).toFixed(2)}%`;
+                    progressText.textContent = `Converting... ${(ratio * 100).toFixed(2)}%`;
+                }
+            }
+        });
         
-        // Set up logging
-        ffmpeg.on('log', ({ message }) => {
-            console.log('FFmpeg log:', message);
-        });
-
-        // Set up progress handling
-        ffmpeg.on('progress', ({ progress }) => {
-            updateProgress(Math.round(progress * 100));
-        });
-
-        // Load FFmpeg with proper configuration
-        await ffmpeg.load({
-            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/ffmpeg-core.js',
-            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/ffmpeg-core.wasm'
-        });
-
-        console.log('FFmpeg loaded successfully');
-        return ffmpeg;
+        await ffmpeg.load();
+        console.log('FFmpeg initialized successfully');
+        return true;
     } catch (error) {
-        console.error('FFmpeg initialization error:', error);
-        throw new Error('Failed to initialize FFmpeg. Please refresh the page and try again.');
+        console.error('Failed to initialize FFmpeg:', error);
+        let errorMessage = 'Failed to initialize FFmpeg. ';
+        
+        if (error.message.includes('SharedArrayBuffer')) {
+            errorMessage += 'This feature requires specific security settings. ';
+            errorMessage += 'Please ensure you are using a modern browser and the site is served with the correct security headers.';
+        } else {
+            errorMessage += 'Please refresh the page and try again.';
+        }
+        
+        showMessage(errorMessage, 'error');
+        return false;
     }
 }
 
-async function convertVideo(targetFormat) {
-    const progressContainer = document.querySelector('.progress-container');
-    progressContainer.classList.add('active');
-
-    // Show warning about video conversion limitations
-    const warningMessage = document.createElement('div');
-    warningMessage.className = 'warning-message';
-    warningMessage.innerHTML = `
-        <i class="fas fa-exclamation-triangle"></i>
-        Video conversion may take some time and requires significant browser resources.
-        Please be patient during the conversion process.
-    `;
-    progressContainer.appendChild(warningMessage);
-
+async function convertVideo(inputFile, outputFormat) {
     try {
-        // Initialize FFmpeg
-        const ffmpeg = await initFFmpeg();
+        if (!ffmpeg) {
+            const initialized = await initFFmpeg();
+            if (!initialized) {
+                throw new Error('Failed to initialize FFmpeg. Please refresh the page and try again.');
+            }
+        }
 
-        // Write the input file to FFmpeg's virtual filesystem
-        const inputData = await currentFile.arrayBuffer();
-        const inputFileName = 'input' + getFileExtension(currentFile.name);
-        await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
+        // Show warning about conversion time
+        showMessage('Converting video... This may take a few minutes.', 'warning');
+        
+        // Write the input file to memory
+        const inputFileName = 'input' + getFileExtension(inputFile.name);
+        ffmpeg.FS('writeFile', inputFileName, await fetchFile(inputFile));
 
-        // Set up FFmpeg command based on target format
-        const outputFileName = 'output.' + targetFormat.toLowerCase();
-        let command = [];
+        // Set output filename
+        const outputFileName = `output.${outputFormat.toLowerCase()}`;
 
-        // Common video encoding settings
-        const commonSettings = [
-            '-c:v', 'libx264',     // Video codec
-            '-preset', 'medium',    // Encoding preset
-            '-crf', '23',          // Quality setting (lower = better quality)
-            '-c:a', 'aac',         // Audio codec
-            '-b:a', '128k',        // Audio bitrate
-            '-movflags', '+faststart' // Enable fast start for web playback
-        ];
-
-        // Format-specific settings
-        switch (targetFormat.toLowerCase()) {
+        // Determine codec based on format
+        let outputOptions = [];
+        switch (outputFormat.toLowerCase()) {
             case 'mp4':
-                command = [
-                    '-i', inputFileName,
-                    ...commonSettings,
-                    outputFileName
-                ];
+                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
                 break;
             case 'mov':
-                command = [
-                    '-i', inputFileName,
-                    ...commonSettings,
-                    outputFileName
-                ];
+                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
                 break;
             case 'avi':
-                command = [
-                    '-i', inputFileName,
-                    '-c:v', 'libx264',
-                    '-preset', 'medium',
-                    '-crf', '23',
-                    '-c:a', 'aac',
-                    '-b:a', '128k',
-                    outputFileName
-                ];
+                outputOptions = ['-c:v', 'libx264', '-c:a', 'mp3'];
                 break;
             case 'wmv':
-                command = [
-                    '-i', inputFileName,
-                    '-c:v', 'wmv2',
-                    '-c:a', 'wmav2',
-                    outputFileName
-                ];
+                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
                 break;
             case 'mkv':
-                command = [
-                    '-i', inputFileName,
-                    ...commonSettings,
-                    outputFileName
-                ];
+                outputOptions = ['-c:v', 'libx264', '-c:a', 'aac'];
                 break;
             default:
-                throw new Error('Unsupported video format');
+                throw new Error('Unsupported output format');
         }
 
         // Run FFmpeg command
-        console.log('Running FFmpeg command:', command.join(' '));
-        await ffmpeg.exec(command);
+        await ffmpeg.run(
+            '-i', inputFileName,
+            ...outputOptions,
+            outputFileName
+        );
 
         // Read the output file
-        const data = await ffmpeg.readFile(outputFileName);
+        const data = ffmpeg.FS('readFile', outputFileName);
 
-        // Clean up files from FFmpeg's virtual filesystem
-        try {
-            await ffmpeg.deleteFile(inputFileName);
-            await ffmpeg.deleteFile(outputFileName);
-        } catch (error) {
-            console.warn('Error cleaning up FFmpeg files:', error);
-        }
+        // Clean up files in memory
+        ffmpeg.FS('unlink', inputFileName);
+        ffmpeg.FS('unlink', outputFileName);
 
-        // Create and return the output blob
-        return new Blob([data], { type: `video/${targetFormat.toLowerCase()}` });
+        // Create download URL
+        const blob = new Blob([data.buffer], { type: `video/${outputFormat}` });
+        const url = URL.createObjectURL(blob);
+
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `converted_video.${outputFormat}`;
+        link.click();
+
+        // Clean up
+        URL.revokeObjectURL(url);
+        showMessage('Video conversion completed successfully!', 'success');
+
     } catch (error) {
-        console.error('Video conversion error:', error);
-        throw new Error(`Failed to convert video: ${error.message}`);
-    } finally {
-        // Clean up progress container
-        setTimeout(() => {
-            progressContainer.classList.remove('active');
-            const warningMessage = progressContainer.querySelector('.warning-message');
-            if (warningMessage) {
-                warningMessage.remove();
-            }
-        }, 1000);
+        console.error('Error during video conversion:', error);
+        showMessage(`Failed to convert video: ${error.message}`, 'error');
+        throw error;
     }
 }
 
@@ -388,7 +372,7 @@ async function convertFile(targetFormat) {
         } else if (fileType.startsWith('audio/')) {
             result = await convertAudio(targetFormat);
         } else if (fileType.startsWith('video/')) {
-            result = await convertVideo(targetFormat);
+            result = await convertVideo(currentFile, targetFormat);
         } else {
             throw new Error('Unsupported file type for conversion.');
         }
@@ -589,4 +573,34 @@ function showSuccess(message) {
     const container = document.querySelector('.conversion-options');
     container.insertBefore(successDiv, container.firstChild);
     setTimeout(() => successDiv.remove(), 5000);
+}
+
+// Add showMessage function
+function showMessage(message, type = 'info') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `warning-message ${type}-message`;
+    
+    let icon;
+    switch (type) {
+        case 'error':
+            icon = 'exclamation-circle';
+            break;
+        case 'success':
+            icon = 'check-circle';
+            break;
+        case 'warning':
+            icon = 'exclamation-triangle';
+            break;
+        default:
+            icon = 'info-circle';
+    }
+    
+    messageDiv.innerHTML = `
+        <i class="fas fa-${icon}"></i>
+        ${message}
+    `;
+    
+    const container = document.querySelector('.conversion-options');
+    container.insertBefore(messageDiv, container.firstChild);
+    setTimeout(() => messageDiv.remove(), 5000);
 } 
