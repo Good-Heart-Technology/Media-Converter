@@ -235,6 +235,11 @@ async function initFFmpeg() {
             console.log('FFmpeg log:', message);
         });
 
+        // Set up progress handling
+        ffmpeg.on('progress', ({ progress }) => {
+            updateProgress(Math.round(progress * 100));
+        });
+
         // Load FFmpeg with proper configuration
         await ffmpeg.load({
             coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/ffmpeg-core.js',
@@ -266,11 +271,6 @@ async function convertVideo(targetFormat) {
     try {
         // Initialize FFmpeg
         const ffmpeg = await initFFmpeg();
-
-        // Set up progress handling
-        ffmpeg.on('progress', ({ progress }) => {
-            updateProgress(Math.round(progress * 100));
-        });
 
         // Write the input file to FFmpeg's virtual filesystem
         const inputData = await currentFile.arrayBuffer();
