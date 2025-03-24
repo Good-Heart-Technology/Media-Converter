@@ -19,11 +19,21 @@ function initializeUI() {
     dropZone = document.getElementById('dropZone');
     fileInput = document.getElementById('fileInput');
     conversionOptions = document.getElementById('conversionOptions');
+    
+    // Check if required elements exist
+    if (!dropZone || !fileInput || !conversionOptions) {
+        console.error('Required UI elements not found. Please check the HTML structure.');
+        return false;
+    }
+    return true;
 }
 
 // Set up event listeners
 function setupEventListeners() {
-    if (!dropZone || !fileInput) return;
+    if (!dropZone || !fileInput) {
+        console.error('Cannot set up event listeners: required elements not found');
+        return;
+    }
 
     dropZone.addEventListener('drop', handleDrop);
     fileInput.addEventListener('change', handleFileSelect);
@@ -47,6 +57,8 @@ function updateFooterYear() {
     const yearElement = document.getElementById('currentYear');
     if (yearElement) {
         yearElement.textContent = new Date().getFullYear();
+    } else {
+        console.warn('Footer year element not found');
     }
 }
 
@@ -250,16 +262,12 @@ let ffmpeg = null;
 async function initFFmpeg() {
     try {
         if (!ffmpeg) {
-            // Create FFmpeg instance using the global FFmpeg object
-            ffmpeg = await FFmpeg.createFFmpeg({
-                log: true,
-                corePath: 'lib/ffmpeg-core.js',
-                wasmPath: 'lib/ffmpeg-core.wasm'
-            });
+            // Create FFmpeg instance
+            ffmpeg = new FFmpeg();
             
             // Set up logging
-            ffmpeg.setLogger(({ type, message }) => {
-                console.log(`FFmpeg ${type}: ${message}`);
+            ffmpeg.on('log', ({ message }) => {
+                console.log(message);
             });
 
             // Load FFmpeg
@@ -289,7 +297,7 @@ async function convertVideo(inputFile, outputFormat) {
         // Write the input file to memory
         const inputFileName = 'input' + getFileExtension(inputFile.name);
         const inputData = await inputFile.arrayBuffer();
-        ffmpeg.FS('writeFile', inputFileName, new Uint8Array(inputData));
+        await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
 
         // Set output filename
         const outputFileName = `output.${outputFormat.toLowerCase()}`;
@@ -325,18 +333,18 @@ async function convertVideo(inputFile, outputFormat) {
         }
 
         // Run FFmpeg command
-        await ffmpeg.run(
+        await ffmpeg.exec([
             '-i', inputFileName,
             ...outputOptions,
             outputFileName
-        );
+        ]);
 
         // Read the output file
-        const data = ffmpeg.FS('readFile', outputFileName);
+        const data = await ffmpeg.readFile(outputFileName);
 
         // Clean up files in memory
-        ffmpeg.FS('unlink', inputFileName);
-        ffmpeg.FS('unlink', outputFileName);
+        await ffmpeg.deleteFile(inputFileName);
+        await ffmpeg.deleteFile(outputFileName);
 
         // Create download URL
         const blob = new Blob([data.buffer], { type: `video/${outputFormat}` });
