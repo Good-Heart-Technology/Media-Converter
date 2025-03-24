@@ -10,6 +10,9 @@
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/ffmpeg.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/util.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pptx2json/1.21.1/pptx2json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/odf-converter/1.0.0/odf-converter.min.js"></script>
     <style>
         :root {
             --primary-color: #7189ff;
@@ -45,7 +48,7 @@
         }
 
         h1 {
-            color: var(--light-blue);
+            color: var(--white);
             margin-bottom: 1rem;
         }
 
@@ -102,28 +105,67 @@
         .supported-formats {
             margin-top: 2rem;
             text-align: left;
-        }
-
-        .format-category {
+            background-color: var(--dark-blue);
+            padding: 1.5rem;
+            border-radius: 8px;
             margin-bottom: 2rem;
         }
 
-        .format-category h3 {
+        .supported-formats h2 {
             color: var(--light-blue);
             margin-bottom: 1rem;
+            text-align: center;
+            font-size: 1.2rem;
         }
 
-        .format-list {
+        .format-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .format-group {
+            background-color: rgba(113, 137, 255, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .format-group h3 {
+            color: var(--light-blue);
+            margin-bottom: 0.5rem;
             display: flex;
-            flex-wrap: wrap;
+            align-items: center;
             gap: 0.5rem;
+            font-size: 0.9rem;
         }
 
-        .format-item {
-            background-color: var(--gray);
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-size: 0.9rem;
+        .format-group h3 i {
+            font-size: 1rem;
+        }
+
+        .format-group p {
+            font-size: 0.8rem;
+            color: var(--white);
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .format-group ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .format-group li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--white);
+        }
+
+        .format-group li i {
+            color: var(--primary-color);
         }
 
         .conversion-options {
@@ -310,6 +352,32 @@
         #fileInput {
             display: none;
         }
+
+        .error-message {
+            background-color: rgba(255, 107, 107, 0.1);
+            border: 1px solid #ff6b6b;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            color: #ff6b6b;
+        }
+
+        .error-message i {
+            color: #ff6b6b;
+        }
+
+        .success-message {
+            background-color: rgba(107, 255, 107, 0.1);
+            border: 1px solid #6bff6b;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            color: var(--white);
+        }
+
+        .success-message i {
+            color: #6bff6b;
+        }
     </style>
 </head>
 <body>
@@ -319,6 +387,24 @@
             <p class="subtitle">Convert your files between various formats with ease</p>
         </header>
 
+        <div class="supported-formats">
+            <h2>Supported Formats</h2>
+            <div class="format-grid">
+                <div class="format-group">
+                    <h3><i class="fas fa-file-image"></i> Images</h3>
+                    <p>JPG, PNG, SVG, GIF, BMP, TIFF, WEBP</p>
+                </div>
+                <div class="format-group">
+                    <h3><i class="fas fa-file-audio"></i> Audio</h3>
+                    <p>MP3, WAV, FLAC, AAC, OGG</p>
+                </div>
+                <div class="format-group">
+                    <h3><i class="fas fa-file-video"></i> Video</h3>
+                    <p>MP4, MOV, AVI, WMV, MKV</p>
+                </div>
+            </div>
+        </div>
+
         <div class="info-box">
             <p><i class="fas fa-file-pdf"></i> Looking to manage PDF files or convert to PDF? We recommend this powerful, web-based <a href="http://pdf.nonprofittools.org/" target="_blank">free suite of PDF tools</a>.</p>   
         </div>
@@ -326,7 +412,7 @@
         <div class="upload-section">
             <div class="upload-area" id="dropZone">
                 <i class="fas fa-cloud-upload-alt"></i>
-                <h2>Drag & Drop your file here</h2>
+                <h2>Drag and drop your file here</h2>
                 <p>or</p>
                 <button class="conversion-button" onclick="document.getElementById('fileInput').click()">
                     Choose File
@@ -339,81 +425,8 @@
             </div>
         </div>
 
-        <div class="supported-formats">
-            <h2>Supported Formats</h2>
-            
-            <div class="format-category">
-                <h3>Images</h3>
-                <div class="format-list">
-                    <span class="format-item">JPG/JPEG</span>
-                    <span class="format-item">PNG</span>
-                    <span class="format-item">SVG</span>
-                    <span class="format-item">GIF</span>
-                    <span class="format-item">BMP</span>
-                    <span class="format-item">TIFF/TIF</span>
-                    <span class="format-item">WEBP</span>
-                </div>
-            </div>
-
-            <div class="format-category">
-                <h3>Documents</h3>
-                <div class="format-list">
-                    <span class="format-item">DOCX</span>
-                    <span class="format-item">ODT</span>
-                    <span class="format-item">TXT</span>
-                    <span class="format-item">RTF</span>
-                    <span class="format-item">MD</span>
-                </div>
-            </div>
-
-            <div class="format-category">
-                <h3>Spreadsheets</h3>
-                <div class="format-list">
-                    <span class="format-item">XLSX</span>
-                    <span class="format-item">ODS</span>
-                    <span class="format-item">CSV</span>
-                    <span class="format-item">TSV</span>
-                </div>
-            </div>
-
-            <div class="format-category">
-                <h3>Presentations</h3>
-                <div class="format-list">
-                    <span class="format-item">PPTX</span>
-                    <span class="format-item">ODP</span>
-                </div>
-            </div>
-
-            <div class="format-category">
-                <h3>Audio</h3>
-                <div class="format-list">
-                    <span class="format-item">MP3</span>
-                    <span class="format-item">WAV</span>
-                    <span class="format-item">FLAC</span>
-                    <span class="format-item">AAC</span>
-                    <span class="format-item">OGG</span>
-                </div>
-            </div>
-
-            <div class="format-category">
-                <h3>Video</h3>
-                <div class="format-list">
-                    <span class="format-item">MP4</span>
-                    <span class="format-item">MOV</span>
-                    <span class="format-item">AVI</span>
-                    <span class="format-item">WMV</span>
-                    <span class="format-item">MKV</span>
-                </div>
-            </div>
-
-            <div class="format-category">
-                <h3>Archives</h3>
-                <div class="format-list">
-                    <span class="format-item">ZIP</span>
-                    <span class="format-item">RAR</span>
-                    <span class="format-item">7Z</span>
-                </div>
-            </div>
+        <div class="info-box">
+            <p><i class="fas fa-shield-alt"></i> No data is stored on servers, and all conversions occur locally within the browser.</p>
         </div>
     </div>
 
@@ -438,30 +451,85 @@
         // Set current year in footer
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
+        // Check if SheetJS is loaded
+        if (typeof XLSX === 'undefined') {
+            console.error('SheetJS library not loaded!');
+        }
+
         // File handling
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const conversionOptions = document.getElementById('conversionOptions');
         let currentFile = null;
 
-        // File type validation
+        // Presentation conversion options
+        const PRESENTATION_CONVERSION_OPTIONS = {
+            'pptx': {
+                name: 'PowerPoint Open XML',
+                mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                convert: async (file) => {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const result = await pptx2json.parse(arrayBuffer);
+                        if (!result || !result.slides) {
+                            throw new Error('Invalid presentation structure');
+                        }
+                        return new Blob([JSON.stringify(result)], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+                    } catch (error) {
+                        console.error('PPTX conversion error:', error);
+                        throw new Error('Failed to convert to PPTX format: ' + error.message);
+                    }
+                }
+            },
+            'ppt': {
+                name: 'PowerPoint Binary',
+                mimeType: 'application/vnd.ms-powerpoint',
+                convert: async (file) => {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        // Convert to PPT using pptx2json's binary output
+                        const result = await pptx2json.parse(arrayBuffer, { outputFormat: 'binary' });
+                        if (!result) {
+                            throw new Error('Conversion failed - no output generated');
+                        }
+                        return new Blob([result], { type: 'application/vnd.ms-powerpoint' });
+                    } catch (error) {
+                        console.error('PPT conversion error:', error);
+                        throw new Error('Failed to convert to PPT format: ' + error.message);
+                    }
+                }
+            },
+            'odp': {
+                name: 'OpenDocument Presentation',
+                mimeType: 'application/vnd.oasis.opendocument.presentation',
+                convert: async (file) => {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        // First convert to JSON using pptx2json
+                        const jsonResult = await pptx2json.parse(arrayBuffer);
+                        if (!jsonResult || !jsonResult.slides) {
+                            throw new Error('Invalid presentation structure');
+                        }
+                        
+                        // Then convert to ODP using odf-converter
+                        const result = await odfConverter.convert(jsonResult, 'odp');
+                        if (!result) {
+                            throw new Error('Conversion failed - no output generated');
+                        }
+                        return new Blob([result], { type: 'application/vnd.oasis.opendocument.presentation' });
+                    } catch (error) {
+                        console.error('ODP conversion error:', error);
+                        throw new Error('Failed to convert to ODP format: ' + error.message);
+                    }
+                }
+            }
+        };
+
+        // Update SUPPORTED_MIME_TYPES for video formats
         const SUPPORTED_MIME_TYPES = {
             'image': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/tiff', 'image/svg+xml'],
             'audio': ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
             'video': ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv', 'video/x-matroska'],
-            'document': ['text/plain', 'text/rtf', 'text/markdown'],
-            'spreadsheet': [
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'application/vnd.oasis.opendocument.spreadsheet',
-                'text/csv',
-                'text/tab-separated-values'
-            ],
-            'presentation': [
-                'application/vnd.ms-powerpoint',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                'application/vnd.oasis.opendocument.presentation'
-            ],
             'archive': [
                 'application/zip',
                 'application/x-rar-compressed',
@@ -469,190 +537,28 @@
             ]
         };
 
-        // File size limits (in bytes)
+        // Remove file size limits
         const FILE_SIZE_LIMITS = {
-            'image': 10 * 1024 * 1024,    // 10MB
-            'audio': 50 * 1024 * 1024,    // 50MB
-            'video': 100 * 1024 * 1024,   // 100MB
-            'document': 20 * 1024 * 1024, // 20MB
-            'spreadsheet': 20 * 1024 * 1024, // 20MB
-            'presentation': 20 * 1024 * 1024, // 20MB
-            'archive': 50 * 1024 * 1024,  // 50MB
-            'default': 10 * 1024 * 1024   // 10MB default
+            'default': Number.MAX_SAFE_INTEGER  // Effectively removes size limits
         };
 
-        // Document conversion options
-        const DOCUMENT_CONVERSION_OPTIONS = {
-            'txt': {
-                name: 'Plain Text',
-                mimeType: 'text/plain',
-                convert: async (file) => {
-                    const text = await file.text();
-                    return new Blob([text], { type: 'text/plain' });
-                }
-            },
-            'rtf': {
-                name: 'Rich Text Format',
-                mimeType: 'text/rtf',
-                convert: async (file) => {
-                    const text = await file.text();
-                    const rtfHeader = '{\\rtf1\\ansi\\deff0\n';
-                    const rtfFooter = '}';
-                    return new Blob([rtfHeader + text + rtfFooter], { type: 'text/rtf' });
-                }
-            },
-            'md': {
-                name: 'Markdown',
-                mimeType: 'text/markdown',
-                convert: async (file) => {
-                    const text = await file.text();
-                    return new Blob([text], { type: 'text/markdown' });
-                }
-            }
-        };
-
-        // Spreadsheet conversion options
-        const SPREADSHEET_CONVERSION_OPTIONS = {
-            'csv': {
-                name: 'Comma-Separated Values',
-                mimeType: 'text/csv',
-                convert: async (file) => {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const csvContent = XLSX.utils.sheet_to_csv(firstSheet);
-                    return new Blob([csvContent], { type: 'text/csv' });
-                }
-            },
-            'tsv': {
-                name: 'Tab-Separated Values',
-                mimeType: 'text/tab-separated-values',
-                convert: async (file) => {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const tsvContent = XLSX.utils.sheet_to_csv(firstSheet, { FS: '\t' });
-                    return new Blob([tsvContent], { type: 'text/tab-separated-values' });
-                }
-            },
-            'xlsx': {
-                name: 'Excel Spreadsheet',
-                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                convert: async (file) => {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const xlsxData = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-                    return new Blob([xlsxData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                }
-            },
-            'ods': {
-                name: 'OpenDocument Spreadsheet',
-                mimeType: 'application/vnd.oasis.opendocument.spreadsheet',
-                convert: async (file) => {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const odsData = XLSX.write(workbook, { bookType: 'ods', type: 'array' });
-                    return new Blob([odsData], { type: 'application/vnd.oasis.opendocument.spreadsheet' });
-                }
-            }
-        };
-
-        // Helper function to extract text from DOCX
-        async function extractTextFromDocx(file) {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const uint8Array = new Uint8Array(arrayBuffer);
-                
-                // Check if it's a ZIP file (DOCX is a ZIP archive)
-                if (uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B || uint8Array[2] !== 0x03 || uint8Array[3] !== 0x04) {
-                    throw new Error('Invalid DOCX file format');
-                }
-
-                // Find the document.xml file in the ZIP structure
-                let docxContent = '';
-                let pos = 0;
-                
-                // Search for document.xml in the ZIP structure
-                while (pos < uint8Array.length - 4) {
-                    if (uint8Array[pos] === 0x50 && uint8Array[pos + 1] === 0x4B && uint8Array[pos + 2] === 0x03 && uint8Array[pos + 3] === 0x04) {
-                        // Found a ZIP file header
-                        const filenameLength = uint8Array[pos + 26] | (uint8Array[pos + 27] << 8);
-                        const extraLength = uint8Array[pos + 28] | (uint8Array[pos + 29] << 8);
-                        
-                        // Extract filename
-                        let filename = '';
-                        for (let i = 0; i < filenameLength; i++) {
-                            filename += String.fromCharCode(uint8Array[pos + 30 + i]);
-                        }
-                        
-                        if (filename === 'word/document.xml') {
-                            // Found document.xml, extract its content
-                            const contentStart = pos + 30 + filenameLength + extraLength;
-                            const contentLength = uint8Array[contentStart - 4] | (uint8Array[contentStart - 3] << 8) | (uint8Array[contentStart - 2] << 16) | (uint8Array[contentStart - 1] << 24);
-                            
-                            // Extract the XML content
-                            docxContent = new TextDecoder().decode(uint8Array.slice(contentStart, contentStart + contentLength));
-                            break;
-                        }
-                        
-                        pos += 30 + filenameLength + extraLength;
-                    } else {
-                        pos++;
-                    }
-                }
-
-                if (!docxContent) {
-                    throw new Error('Could not find document.xml in the DOCX file');
-                }
-
-                // Extract text content from the XML
-                const textContent = docxContent
-                    .replace(/<w:t[^>]*>([^<]+)<\/w:t>/g, '$1') // Extract text between w:t tags
-                    .replace(/<w:br\/>/g, '\n') // Convert line breaks
-                    .replace(/<w:p[^>]*>/g, '\n') // Convert paragraphs to newlines
-                    .replace(/<\/w:p>/g, '') // Remove paragraph end tags
-                    .replace(/<[^>]+>/g, '') // Remove remaining XML tags
-                    .replace(/&[^;]+;/g, '') // Remove XML entities
-                    .replace(/\n\s*\n/g, '\n\n') // Normalize multiple newlines
-                    .replace(/\s+/g, ' ') // Normalize spaces
-                    .trim();
-
-                if (!textContent) {
-                    throw new Error('No text content found in the DOCX file');
-                }
-
-                return textContent;
-            } catch (error) {
-                console.error('Error extracting text from DOCX:', error);
-                throw new Error('Failed to extract text from DOCX file');
-            }
+        function getFileSizeLimit(fileType) {
+            return FILE_SIZE_LIMITS.default;
         }
 
-        // Helper function to extract text from various file types
-        async function extractTextFromFile(file) {
-            try {
-                if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                    return await extractTextFromDocx(file);
-                } else if (file.type === 'text/plain') {
-                    return await file.text();
-                } else if (file.type === 'text/rtf') {
-                    const text = await file.text();
-                    // Remove RTF formatting
-                    return text.replace(/\\[a-z]{1,32}(-?\d{1,10})?[ ]?/g, '')
-                              .replace(/\\'[0-9a-f]{2}/g, '')
-                              .replace(/\\[{}]/g, '')
-                              .replace(/\\par/g, '\n')
-                              .replace(/\\line/g, '\n')
-                              .replace(/\\tab/g, '\t')
-                              .replace(/\n{3,}/g, '\n\n')
-                              .trim();
-                } else {
-                    return await file.text();
-                }
-            } catch (error) {
-                console.error('Error extracting text:', error);
-                throw new Error('Failed to extract text from file');
-            }
+        function getSupportedFormats(fileType, fileExtension) {
+            const formats = {
+                'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
+                'audio': ['MP3', 'WAV', 'OGG'],
+                'video': ['MP4', 'MOV', 'AVI', 'WMV', 'MKV'],
+                'archive': ['ZIP', 'RAR', '7Z']
+            };
+
+            if (fileType.startsWith('image/')) return formats.image.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.startsWith('audio/')) return formats.audio.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.startsWith('video/')) return formats.video.filter(f => f.toLowerCase() !== fileExtension);
+            if (fileType.includes('archive')) return formats.archive.filter(f => f.toLowerCase() !== fileExtension);
+            return [];
         }
 
         // Event Listeners
@@ -716,6 +622,20 @@
             if (files.length === 0) return;
             
             const file = files[0];
+            
+            // Special handling for PDF files
+            if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                const warningMessage = document.createElement('div');
+                warningMessage.className = 'warning-message';
+                warningMessage.innerHTML = `
+                    <i class="fas fa-info-circle"></i>
+                    For PDF file conversions, we recommend using this tool, which can do pretty much anything with PDFs:
+                    <a href="http://pdf.nonprofittools.org/" target="_blank" style="color: inherit; text-decoration: underline;">PDF Tools (Stirling PDF)</a>
+                `;
+                document.querySelector('.upload-section').appendChild(warningMessage);
+                return;
+            }
+
             const validation = validateFileType(file);
             
             if (!validation.valid) {
@@ -749,9 +669,6 @@
                 'image': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'tif', 'svg'],
                 'audio': ['mp3', 'wav', 'ogg', 'flac', 'aac'],
                 'video': ['mp4', 'mov', 'avi', 'wmv', 'mkv'],
-                'document': ['txt', 'rtf', 'md'],
-                'spreadsheet': ['xlsx', 'ods', 'csv', 'tsv'],
-                'presentation': ['pptx', 'odp'],
                 'archive': ['zip', 'rar', '7z']
             };
 
@@ -762,43 +679,6 @@
             }
 
             return { valid: false, category: null, extension: fileExtension };
-        }
-
-        function getFileSizeLimit(fileType) {
-            if (fileType.startsWith('image/')) return FILE_SIZE_LIMITS.image;
-            if (fileType.startsWith('audio/')) return FILE_SIZE_LIMITS.audio;
-            if (fileType.startsWith('video/')) return FILE_SIZE_LIMITS.video;
-            if (fileType.includes('document')) return FILE_SIZE_LIMITS.document;
-            if (fileType.includes('spreadsheet')) return FILE_SIZE_LIMITS.spreadsheet;
-            if (fileType.includes('presentation')) return FILE_SIZE_LIMITS.presentation;
-            if (fileType.includes('archive')) return FILE_SIZE_LIMITS.archive;
-            return FILE_SIZE_LIMITS.default;
-        }
-
-        function getSupportedFormats(fileType, fileExtension) {
-            const formats = {
-                'image': ['PNG', 'JPG', 'WEBP', 'GIF', 'SVG'],
-                'audio': ['MP3', 'WAV', 'OGG'],
-                'video': ['MP4', 'WEBM'],
-                'document': ['TXT', 'RTF', 'MD'],
-                'spreadsheet': ['CSV', 'TSV', 'XLSX', 'ODS'],
-                'presentation': ['PPTX', 'ODP'],
-                'archive': ['ZIP', 'RAR', '7Z']
-            };
-
-            // Special handling for CSV files
-            if (fileExtension === 'csv' || fileType === 'text/csv') {
-                return formats.spreadsheet.filter(f => f.toLowerCase() !== 'csv');
-            }
-
-            if (fileType.startsWith('image/')) return formats.image.filter(f => f.toLowerCase() !== fileExtension);
-            if (fileType.startsWith('audio/')) return formats.audio.filter(f => f.toLowerCase() !== fileExtension);
-            if (fileType.startsWith('video/')) return formats.video.filter(f => f.toLowerCase() !== fileExtension);
-            if (fileType.startsWith('text/') || fileType.includes('document')) return formats.document.filter(f => f.toLowerCase() !== fileExtension);
-            if (fileType.includes('spreadsheet')) return formats.spreadsheet.filter(f => f.toLowerCase() !== fileExtension);
-            if (fileType.includes('presentation')) return formats.presentation.filter(f => f.toLowerCase() !== fileExtension);
-            if (fileType.includes('archive')) return formats.archive.filter(f => f.toLowerCase() !== fileExtension);
-            return formats.application.filter(f => f.toLowerCase() !== fileExtension);
         }
 
         function showConversionOptions(fileType, fileExtension) {
@@ -828,52 +708,6 @@
                 conversionOptions.appendChild(previewContainer);
             }
 
-            // PDF warning message
-            if (fileType === 'application/pdf') {
-                const warningMessage = document.createElement('div');
-                warningMessage.className = 'warning-message';
-                warningMessage.innerHTML = `
-                    <i class="fas fa-info-circle"></i>
-                    For PDF files, we recommend using our partner tool:
-                    <a href="http://pdf.nonprofittools.org/" target="_blank" style="color: inherit; text-decoration: underline;">PDF Tools</a>
-                `;
-                conversionOptions.appendChild(warningMessage);
-            }
-
-            // Spreadsheet Preview
-            if (fileType.includes('spreadsheet')) {
-                const previewContainer = document.createElement('div');
-                previewContainer.className = 'preview-container';
-                previewContainer.innerHTML = `
-                    <p><strong>Preview:</strong></p>
-                    <div class="spreadsheet-preview">
-                        <table class="preview-table">
-                            <tbody>
-                                <tr>
-                                    <td colspan="3" class="preview-loading">Loading preview...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                previewContainer.classList.add('active');
-                conversionOptions.appendChild(previewContainer);
-
-                // Load spreadsheet preview
-                loadSpreadsheetPreview(currentFile);
-            }
-
-            // Spreadsheet warning message
-            if (fileType.includes('spreadsheet')) {
-                const warningMessage = document.createElement('div');
-                warningMessage.className = 'warning-message';
-                warningMessage.innerHTML = `
-                    <i class="fas fa-info-circle"></i>
-                    Note: Complex spreadsheet features (formulas, formatting, etc.) may not be preserved in the conversion.
-                `;
-                conversionOptions.appendChild(warningMessage);
-            }
-
             // Conversion Buttons
             const supportedFormats = getSupportedFormats(fileType, fileExtension);
             supportedFormats.forEach(format => {
@@ -881,7 +715,7 @@
                 button.className = 'conversion-button';
                 button.innerHTML = `<i class="fas fa-download"></i> Convert to ${format}`;
                 button.addEventListener('click', () => {
-                    console.log('Converting to:', format); // Debug log
+                    console.log('Converting to:', format);
                     convertFile(format);
                 });
                 conversionOptions.appendChild(button);
@@ -899,10 +733,159 @@
             conversionOptions.appendChild(progressContainer);
         }
 
+        // Video conversion functions
+        let ffmpeg = null;
+
+        async function initFFmpeg() {
+            if (ffmpeg) return ffmpeg;
+
+            try {
+                // Create FFmpeg instance
+                ffmpeg = new FFmpeg();
+                
+                // Set up logging
+                ffmpeg.on('log', ({ message }) => {
+                    console.log('FFmpeg log:', message);
+                });
+
+                // Load FFmpeg with proper configuration
+                await ffmpeg.load({
+                    coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/ffmpeg-core.js',
+                    wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.4/dist/ffmpeg-core.wasm'
+                });
+
+                console.log('FFmpeg loaded successfully');
+                return ffmpeg;
+            } catch (error) {
+                console.error('FFmpeg initialization error:', error);
+                throw new Error('Failed to initialize FFmpeg. Please refresh the page and try again.');
+            }
+        }
+
+        async function convertVideo(targetFormat) {
+            const progressContainer = document.querySelector('.progress-container');
+            progressContainer.classList.add('active');
+
+            // Show warning about video conversion limitations
+            const warningMessage = document.createElement('div');
+            warningMessage.className = 'warning-message';
+            warningMessage.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                Video conversion may take some time and requires significant browser resources.
+                Please be patient during the conversion process.
+            `;
+            progressContainer.appendChild(warningMessage);
+
+            try {
+                // Initialize FFmpeg
+                const ffmpeg = await initFFmpeg();
+
+                // Set up progress handling
+                ffmpeg.on('progress', ({ progress }) => {
+                    updateProgress(Math.round(progress * 100));
+                });
+
+                // Write the input file to FFmpeg's virtual filesystem
+                const inputData = await currentFile.arrayBuffer();
+                const inputFileName = 'input' + getFileExtension(currentFile.name);
+                await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
+
+                // Set up FFmpeg command based on target format
+                const outputFileName = 'output.' + targetFormat.toLowerCase();
+                let command = [];
+
+                // Common video encoding settings
+                const commonSettings = [
+                    '-c:v', 'libx264',     // Video codec
+                    '-preset', 'medium',    // Encoding preset
+                    '-crf', '23',          // Quality setting (lower = better quality)
+                    '-c:a', 'aac',         // Audio codec
+                    '-b:a', '128k',        // Audio bitrate
+                    '-movflags', '+faststart' // Enable fast start for web playback
+                ];
+
+                // Format-specific settings
+                switch (targetFormat.toLowerCase()) {
+                    case 'mp4':
+                        command = [
+                            '-i', inputFileName,
+                            ...commonSettings,
+                            outputFileName
+                        ];
+                        break;
+                    case 'mov':
+                        command = [
+                            '-i', inputFileName,
+                            ...commonSettings,
+                            outputFileName
+                        ];
+                        break;
+                    case 'avi':
+                        command = [
+                            '-i', inputFileName,
+                            '-c:v', 'libx264',
+                            '-preset', 'medium',
+                            '-crf', '23',
+                            '-c:a', 'aac',
+                            '-b:a', '128k',
+                            outputFileName
+                        ];
+                        break;
+                    case 'wmv':
+                        command = [
+                            '-i', inputFileName,
+                            '-c:v', 'wmv2',
+                            '-c:a', 'wmav2',
+                            outputFileName
+                        ];
+                        break;
+                    case 'mkv':
+                        command = [
+                            '-i', inputFileName,
+                            ...commonSettings,
+                            outputFileName
+                        ];
+                        break;
+                    default:
+                        throw new Error('Unsupported video format');
+                }
+
+                // Run FFmpeg command
+                console.log('Running FFmpeg command:', command.join(' '));
+                await ffmpeg.exec(command);
+
+                // Read the output file
+                const data = await ffmpeg.readFile(outputFileName);
+
+                // Clean up files from FFmpeg's virtual filesystem
+                try {
+                    await ffmpeg.deleteFile(inputFileName);
+                    await ffmpeg.deleteFile(outputFileName);
+                } catch (error) {
+                    console.warn('Error cleaning up FFmpeg files:', error);
+                }
+
+                // Create and return the output blob
+                return new Blob([data], { type: `video/${targetFormat.toLowerCase()}` });
+            } catch (error) {
+                console.error('Video conversion error:', error);
+                throw new Error(`Failed to convert video: ${error.message}`);
+            } finally {
+                // Clean up progress container
+                setTimeout(() => {
+                    progressContainer.classList.remove('active');
+                    const warningMessage = progressContainer.querySelector('.warning-message');
+                    if (warningMessage) {
+                        warningMessage.remove();
+                    }
+                }, 1000);
+            }
+        }
+
         // Conversion Functions
         async function convertFile(targetFormat) {
             if (!currentFile) {
-                alert('Please select a file first.');
+                showError('Please select a file first.');
                 return;
             }
 
@@ -919,12 +902,12 @@
                     result = await convertAudio(targetFormat);
                 } else if (fileType.startsWith('video/')) {
                     result = await convertVideo(targetFormat);
-                } else if (fileType.startsWith('text/') || fileType.includes('document')) {
-                    result = await convertDocument(targetFormat);
-                } else if (fileType.includes('spreadsheet')) {
-                    result = await convertSpreadsheet(targetFormat);
                 } else {
                     throw new Error('Unsupported file type for conversion.');
+                }
+
+                if (!result) {
+                    throw new Error('Conversion failed - no output generated');
                 }
 
                 // Create download link with modified filename
@@ -940,9 +923,10 @@
                 URL.revokeObjectURL(url);
 
                 updateProgress(100);
+                showSuccess('File converted successfully!');
             } catch (error) {
                 console.error('Conversion error:', error);
-                alert('An error occurred during conversion. Please try again.');
+                showError(error.message || 'An error occurred during conversion. Please try again.');
             } finally {
                 setTimeout(() => {
                     progressContainer.classList.remove('active');
@@ -1091,121 +1075,33 @@
             }
         }
 
-        async function convertDocument(targetFormat) {
-            const format = targetFormat.toLowerCase();
-            if (!DOCUMENT_CONVERSION_OPTIONS[format]) {
-                throw new Error('Unsupported document format');
-            }
-
-            updateProgress(25);
-            try {
-                const blob = await DOCUMENT_CONVERSION_OPTIONS[format].convert(currentFile);
-                updateProgress(100);
-                return blob;
-            } catch (error) {
-                console.error('Document conversion error:', error);
-                throw new Error('Failed to convert document. Please try a different format.');
-            }
-        }
-
-        async function convertSpreadsheet(targetFormat) {
-            const format = targetFormat.toLowerCase();
-            if (!SPREADSHEET_CONVERSION_OPTIONS[format]) {
-                throw new Error('Unsupported spreadsheet format');
-            }
-
-            updateProgress(25);
-            try {
-                const blob = await SPREADSHEET_CONVERSION_OPTIONS[format].convert(currentFile);
-                updateProgress(100);
-                return blob;
-            } catch (error) {
-                console.error('Spreadsheet conversion error:', error);
-                throw new Error('Failed to convert spreadsheet. Please try a different format.');
-            }
-        }
-
-        async function convertVideo(targetFormat) {
-            // Show warning about video conversion limitations
-            const warningMessage = document.createElement('div');
-            warningMessage.className = 'warning-message';
-            warningMessage.innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i>
-                Video conversion may take some time and requires significant browser resources.
-                Please be patient during the conversion process.
-            `;
-            document.querySelector('.progress-container').appendChild(warningMessage);
-
-            // Check if FFmpeg is loaded
-            if (typeof FFmpeg === 'undefined') {
-                throw new Error('FFmpeg is not loaded. Please refresh the page and try again.');
-            }
-
-            // Initialize FFmpeg
-            const ffmpeg = new FFmpeg();
-            await ffmpeg.load();
-
-            // Write the input file to FFmpeg's virtual filesystem
-            const inputData = await currentFile.arrayBuffer();
-            await ffmpeg.writeFile('input' + getFileExtension(currentFile.name), new Uint8Array(inputData));
-
-            // Set up FFmpeg command based on target format
-            let command = [];
-            switch (targetFormat.toLowerCase()) {
-                case 'mp4':
-                    command = ['-i', 'input' + getFileExtension(currentFile.name), '-c:v', 'libx264', '-c:a', 'aac', 'output.mp4'];
-                    break;
-                case 'webm':
-                    command = ['-i', 'input' + getFileExtension(currentFile.name), '-c:v', 'libvpx-vp9', '-c:a', 'libvorbis', 'output.webm'];
-                    break;
-                default:
-                    throw new Error('Unsupported video format');
-            }
-
-            // Set up progress handling
-            ffmpeg.on('progress', ({ progress }) => {
-                updateProgress(Math.round(progress * 100));
-            });
-
-            // Run FFmpeg command
-            await ffmpeg.exec(command);
-
-            // Read the output file
-            const data = await ffmpeg.readFile('output.' + targetFormat.toLowerCase());
-            return new Blob([data], { type: `video/${targetFormat.toLowerCase()}` });
-        }
-
         function getFileExtension(filename) {
             return '.' + filename.split('.').pop().toLowerCase();
         }
 
-        // Add function to load spreadsheet preview
-        async function loadSpreadsheetPreview(file) {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        // Add error and success message functions
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'warning-message error-message';
+            errorDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                ${message}
+            `;
+            const container = document.querySelector('.conversion-options');
+            container.insertBefore(errorDiv, container.firstChild);
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
 
-                // Get the preview table
-                const previewTable = document.querySelector('.preview-table tbody');
-                previewTable.innerHTML = '';
-
-                // Show first 5 rows
-                for (let i = 0; i < Math.min(5, jsonData.length); i++) {
-                    const row = document.createElement('tr');
-                    for (let j = 0; j < Math.min(5, jsonData[i].length); j++) {
-                        const cell = document.createElement('td');
-                        cell.textContent = jsonData[i][j] || '';
-                        row.appendChild(cell);
-                    }
-                    previewTable.appendChild(row);
-                }
-            } catch (error) {
-                console.error('Error loading spreadsheet preview:', error);
-                const previewTable = document.querySelector('.preview-table tbody');
-                previewTable.innerHTML = '<tr><td colspan="3">Unable to load preview</td></tr>';
-            }
+        function showSuccess(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'warning-message success-message';
+            successDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                ${message}
+            `;
+            const container = document.querySelector('.conversion-options');
+            container.insertBefore(successDiv, container.firstChild);
+            setTimeout(() => successDiv.remove(), 5000);
         }
     </script>
 </body>
