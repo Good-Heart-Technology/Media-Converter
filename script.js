@@ -230,18 +230,11 @@ async function initFFmpeg() {
     try {
         // Check for SharedArrayBuffer support
         if (typeof SharedArrayBuffer === 'undefined') {
-            // Try to enable SharedArrayBuffer
-            if (crossOriginIsolated) {
-                throw new Error(
-                    'SharedArrayBuffer is not available despite cross-origin isolation. ' +
-                    'Please ensure you are using a modern browser and the site is served with the correct security headers.'
-                );
-            } else {
-                throw new Error(
-                    'This feature requires cross-origin isolation to be enabled. ' +
-                    'Please ensure the site is served with the correct security headers (COOP and COEP).'
-                );
-            }
+            throw new Error(
+                'Your browser does not support SharedArrayBuffer. ' +
+                'This is required for video conversion. ' +
+                'Please try using a modern browser like Chrome, Edge, or Firefox.'
+            );
         }
 
         ffmpeg = createFFmpeg({
@@ -268,8 +261,8 @@ async function initFFmpeg() {
         let errorMessage = 'Failed to initialize FFmpeg. ';
         
         if (error.message.includes('SharedArrayBuffer')) {
-            errorMessage += 'This feature requires specific security settings. ';
-            errorMessage += 'Please ensure you are using a modern browser and the site is served with the correct security headers.';
+            errorMessage += 'This feature requires a modern browser that supports SharedArrayBuffer. ';
+            errorMessage += 'Please try using Chrome, Edge, or Firefox.';
         } else if (error.message.includes('Failed to fetch')) {
             errorMessage += 'Failed to load FFmpeg core files. Please ensure all required files are present in the lib directory.';
         } else {
