@@ -262,12 +262,22 @@ let ffmpeg = null;
 async function initFFmpeg() {
     try {
         if (!ffmpeg) {
+            // Wait for FFmpeg to be available
+            if (typeof FFmpeg === 'undefined') {
+                throw new Error('FFmpeg library not loaded. Please ensure ffmpeg.js is present in the lib directory.');
+            }
+
             // Create FFmpeg instance
             ffmpeg = new FFmpeg();
             
             // Set up logging
             ffmpeg.on('log', ({ message }) => {
-                console.log(message);
+                console.log('FFmpeg:', message);
+            });
+
+            // Set up progress handling
+            ffmpeg.on('progress', ({ progress }) => {
+                updateProgress(Math.round(progress * 100));
             });
 
             // Load FFmpeg
@@ -277,13 +287,14 @@ async function initFFmpeg() {
         return true;
     } catch (error) {
         console.error('Failed to initialize FFmpeg:', error);
-        showMessage('Failed to initialize FFmpeg. Please refresh the page and try again.', 'error');
+        showMessage('Failed to initialize FFmpeg. Please ensure ffmpeg.js is present in the lib directory and refresh the page.', 'error');
         return false;
     }
 }
 
 async function convertVideo(inputFile, outputFormat) {
     try {
+        // Initialize FFmpeg if not already initialized
         if (!ffmpeg) {
             const initialized = await initFFmpeg();
             if (!initialized) {
