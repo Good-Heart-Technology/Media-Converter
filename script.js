@@ -246,7 +246,8 @@ async function initFFmpeg() {
 
         ffmpeg = createFFmpeg({
             log: true,
-            corePath: 'lib/ffmpeg-core.js',
+            corePath: './lib/ffmpeg-core.js',
+            wasmPath: './lib/ffmpeg-core.wasm',
             mainName: 'main',
             progress: ({ ratio }) => {
                 const progressBar = document.querySelector('.progress-fill');
@@ -268,6 +269,8 @@ async function initFFmpeg() {
         if (error.message.includes('SharedArrayBuffer')) {
             errorMessage += 'This feature requires specific security settings. ';
             errorMessage += 'Please ensure you are using a modern browser and the site is served with the correct security headers.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage += 'Failed to load FFmpeg core files. Please ensure all required files are present in the lib directory.';
         } else {
             errorMessage += 'Please refresh the page and try again.';
         }
