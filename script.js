@@ -1,11 +1,37 @@
+// Logging utility
+const Logger = {
+    info: (message, data = null) => {
+        console.log(`[INFO] ${message}`, data || '');
+    },
+    error: (message, error = null) => {
+        console.error(`[ERROR] ${message}`, error || '');
+    },
+    warn: (message, data = null) => {
+        console.warn(`[WARN] ${message}`, data || '');
+    },
+    debug: (message, data = null) => {
+        console.debug(`[DEBUG] ${message}`, data || '');
+    }
+};
+
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize UI elements
-    initializeUI();
-    // Set up event listeners
-    setupEventListeners();
-    // Set current year in footer
-    updateFooterYear();
+    Logger.info('DOM Content Loaded, initializing application...');
+    try {
+        // Initialize UI elements
+        if (!initializeUI()) {
+            Logger.error('Failed to initialize UI elements');
+            return;
+        }
+        // Set up event listeners
+        setupEventListeners();
+        // Set current year in footer
+        updateFooterYear();
+        Logger.info('Application initialized successfully');
+    } catch (error) {
+        Logger.error('Failed to initialize application', error);
+        showMessage('Failed to initialize application. Please refresh the page.', 'error');
+    }
 });
 
 // UI Elements
@@ -16,15 +42,21 @@ let currentFile = null;
 
 // Initialize UI elements
 function initializeUI() {
+    Logger.debug('Initializing UI elements...');
     dropZone = document.getElementById('dropZone');
     fileInput = document.getElementById('fileInput');
     conversionOptions = document.getElementById('conversionOptions');
     
     // Check if required elements exist
     if (!dropZone || !fileInput || !conversionOptions) {
-        console.error('Required UI elements not found. Please check the HTML structure.');
+        Logger.error('Required UI elements not found', {
+            dropZone: !!dropZone,
+            fileInput: !!fileInput,
+            conversionOptions: !!conversionOptions
+        });
         return false;
     }
+    Logger.debug('UI elements initialized successfully');
     return true;
 }
 
@@ -124,41 +156,59 @@ function updateProgress(percent) {
 
 // File Handling Functions
 function handleDrop(e) {
+    Logger.debug('File dropped', { files: e.dataTransfer.files.length });
     const dt = e.dataTransfer;
     const files = dt.files;
     handleFiles(files);
 }
 
 function handleFileSelect(e) {
+    Logger.debug('File selected', { files: e.target.files.length });
     const files = e.target.files;
     handleFiles(files);
 }
 
 function handleFiles(files) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+        Logger.warn('No files provided');
+        return;
+    }
     
     const file = files[0];
+    Logger.info('Processing file', {
+        name: file.name,
+        type: file.type,
+        size: formatFileSize(file.size)
+    });
     
     // Special handling for PDF files
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        Logger.info('PDF file detected, showing warning');
         showPDFWarning();
         return;
     }
 
     const validation = validateFileType(file);
+    Logger.debug('File validation result', validation);
     
     if (!validation.valid) {
+        Logger.warn('Unsupported file type', { file: file.name, type: file.type });
         showMessage(`Unsupported file type: ${file.name}\nPlease check the supported formats list below.`, 'error');
         return;
     }
 
     const sizeLimit = FILE_SIZE_LIMITS.default;
     if (file.size > sizeLimit) {
+        Logger.warn('File size exceeds limit', {
+            fileSize: formatFileSize(file.size),
+            limit: formatFileSize(sizeLimit)
+        });
         showMessage(`File size exceeds the limit of ${formatFileSize(sizeLimit)}. Please choose a smaller file.`, 'error');
         return;
     }
 
     currentFile = file;
+    Logger.info('File validated successfully, showing conversion options');
     showConversionOptions(file.type, validation.extension);
 }
 
@@ -262,31 +312,38 @@ let ffmpeg = null;
 async function initFFmpeg() {
     try {
         if (!ffmpeg) {
+            Logger.info('Initializing FFmpeg...');
+            
             // Wait for FFmpeg to be available
             if (typeof FFmpeg === 'undefined') {
+                Logger.error('FFmpeg library not loaded');
                 throw new Error('FFmpeg library not loaded. Please ensure ffmpeg.js is present in the lib directory.');
             }
 
             // Create FFmpeg instance
             ffmpeg = new FFmpeg();
+            Logger.debug('FFmpeg instance created');
             
             // Set up logging
             ffmpeg.on('log', ({ message }) => {
-                console.log('FFmpeg:', message);
+                Logger.debug('FFmpeg log', { message });
             });
 
             // Set up progress handling
             ffmpeg.on('progress', ({ progress }) => {
-                updateProgress(Math.round(progress * 100));
+                const percent = Math.round(progress * 100);
+                Logger.debug('FFmpeg progress', { progress: percent });
+                updateProgress(percent);
             });
 
             // Load FFmpeg
+            Logger.info('Loading FFmpeg...');
             await ffmpeg.load();
-            console.log('FFmpeg initialized successfully');
+            Logger.info('FFmpeg initialized successfully');
         }
         return true;
     } catch (error) {
-        console.error('Failed to initialize FFmpeg:', error);
+        Logger.error('Failed to initialize FFmpeg', error);
         showMessage('Failed to initialize FFmpeg. Please ensure ffmpeg.js is present in the lib directory and refresh the page.', 'error');
         return false;
     }
@@ -294,8 +351,14 @@ async function initFFmpeg() {
 
 async function convertVideo(inputFile, outputFormat) {
     try {
+        Logger.info('Starting video conversion', {
+            inputFile: inputFile.name,
+            outputFormat: outputFormat
+        });
+
         // Initialize FFmpeg if not already initialized
         if (!ffmpeg) {
+            Logger.debug('FFmpeg not initialized, initializing...');
             const initialized = await initFFmpeg();
             if (!initialized) {
                 throw new Error('Failed to initialize FFmpeg');
@@ -307,11 +370,14 @@ async function convertVideo(inputFile, outputFormat) {
         
         // Write the input file to memory
         const inputFileName = 'input' + getFileExtension(inputFile.name);
+        Logger.debug('Reading input file', { fileName: inputFileName });
         const inputData = await inputFile.arrayBuffer();
         await ffmpeg.writeFile(inputFileName, new Uint8Array(inputData));
+        Logger.debug('Input file written to FFmpeg memory');
 
         // Set output filename
         const outputFileName = `output.${outputFormat.toLowerCase()}`;
+        Logger.debug('Setting up output file', { fileName: outputFileName });
 
         // Configure conversion options based on format
         let outputOptions = [];
@@ -342,26 +408,35 @@ async function convertVideo(inputFile, outputFormat) {
             default:
                 throw new Error('Unsupported output format');
         }
+        Logger.debug('FFmpeg options configured', { options: outputOptions });
 
         // Run FFmpeg command
+        Logger.info('Running FFmpeg command...');
         await ffmpeg.exec([
             '-i', inputFileName,
             ...outputOptions,
             outputFileName
         ]);
+        Logger.debug('FFmpeg command completed');
 
         // Read the output file
+        Logger.debug('Reading output file');
         const data = await ffmpeg.readFile(outputFileName);
+        Logger.debug('Output file read successfully');
 
         // Clean up files in memory
+        Logger.debug('Cleaning up temporary files');
         await ffmpeg.deleteFile(inputFileName);
         await ffmpeg.deleteFile(outputFileName);
+        Logger.debug('Cleanup completed');
 
         // Create download URL
+        Logger.debug('Creating download URL');
         const blob = new Blob([data.buffer], { type: `video/${outputFormat}` });
         const url = URL.createObjectURL(blob);
 
         // Trigger download
+        Logger.info('Starting download');
         const link = document.createElement('a');
         link.href = url;
         link.download = `converted_video.${outputFormat}`;
@@ -369,10 +444,11 @@ async function convertVideo(inputFile, outputFormat) {
 
         // Clean up
         URL.revokeObjectURL(url);
+        Logger.info('Video conversion completed successfully');
         showMessage('Video conversion completed successfully!', 'success');
 
     } catch (error) {
-        console.error('Error during video conversion:', error);
+        Logger.error('Error during video conversion', error);
         showMessage(`Failed to convert video: ${error.message}`, 'error');
         throw error;
     }
@@ -386,7 +462,9 @@ async function convertFile(targetFormat) {
     }
 
     const progressContainer = document.querySelector('.progress-container');
-    progressContainer.classList.add('active');
+    if (progressContainer) {
+        progressContainer.classList.add('active');
+    }
 
     try {
         const fileType = currentFile.type;
@@ -424,9 +502,11 @@ async function convertFile(targetFormat) {
         console.error('Conversion error:', error);
         showError(error.message || 'An error occurred during conversion. Please try again.');
     } finally {
-        setTimeout(() => {
-            progressContainer.classList.remove('active');
-        }, 1000);
+        if (progressContainer) {
+            setTimeout(() => {
+                progressContainer.classList.remove('active');
+            }, 1000);
+        }
     }
 }
 
