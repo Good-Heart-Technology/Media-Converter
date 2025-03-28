@@ -14,8 +14,6 @@ This app was developed and hosted by [Good Heart Tech](https://goodhearttech.org
 
 - **Image Conversion**: Convert between JPG, PNG, WebP, and more
 - **Audio Processing**: Transform audio files between MP3, WAV, OGG formats
-- **Video Conversion**: Convert videos to different formats and qualities
-- **Batch Processing**: Convert multiple files simultaneously
 - **No Registration**: Start converting immediately without creating an account
 - **Browser-Based**: No software installation required
 - **Secure Processing**: Files are processed locally in your browser
